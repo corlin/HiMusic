@@ -1,0 +1,43 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:himusic/playback/audio_bridge.dart';
+import 'package:himusic/sources/local_source.dart';
+import 'fixtures.dart';
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('真实 macOS 引擎通过范围桥接播放三种 FLAC 并拖动', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Center(child: Text('HiMusic · FLAC playback verification')))));
+    final directory = await Directory.systemTemp.createTemp('himusic-audio-');
+    final source = await LocalSource.open(directory.path);
+    final bridge = await AudioBridge.start(source);
+    final player = AudioPlayer();
+    try {
+      await player.setVolume(0); // Decode with native output running, without audible test tones.
+      for (final fixture in flacFixtures.entries) {
+        await File('${directory.path}/${fixture.key}').writeAsBytes(base64Decode(fixture.value));
+      }
+      for (final file in await source.list('')) {
+        await player.setUrl(bridge.register(file).toString()).timeout(const Duration(seconds: 20));
+        expect(player.duration?.inMilliseconds, closeTo(4000, 100));
+        unawaited(player.play());
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        expect(player.position.inMilliseconds, greaterThan(100));
+        await player.pause();
+        await player.seek(const Duration(seconds: 2));
+        expect(player.position.inMilliseconds, closeTo(2000, 200));
+        await player.stop();
+      }
+    } finally {
+      await player.dispose();
+      await bridge.close();
+      await source.close();
+      await directory.delete(recursive: true);
+    }
+  });
+}
