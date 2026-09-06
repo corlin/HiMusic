@@ -58,3 +58,15 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - 本机产物位于 `artifacts/`，不提交大型二进制文件。Android 为开发调试签名包，macOS 为本机构建，不是商店签名/公证发布版。
 - macOS Release 构建成功（构建目录约 46 MB），复制为 `artifacts/HiMusic.app` 并打包 ZIP；通过实际窗口截图确认正常首屏显示。
 - 产物校验和写入 `artifacts/SHA256SUMS.txt`。
+
+## 0.1.1 音量与本机输出（2026-09-06）
+
+- 增加顶部声音入口、播放栏音量滑块、百分比与静音/恢复；音量调整不受播放操作 busy 状态丢弃，串行合并最新目标。
+- macOS 通过 CoreAudio 读取实际输出设备，选择后核验系统默认输出；界面明确标注影响其他应用。
+- Android API 34+ 尝试系统输出选择器，较旧系统或未能显示时进入声音设置；iOS 注册 AVRoutePickerView；Windows 打开声音设置。
+- 本次设备选择为本机音频路由，不是家庭远程设备配对或播放接力。
+- 静态分析与 7 项既有测试通过；macOS 原生音量/静音/最终值验证通过；实际输出设备枚举及重选当前设备通过（未主动切到其他设备）。
+- 代码复核未发现新增实质问题。真实 Android/iOS 路由切换、外接蓝牙/HDMI 热插拔及 Windows 入口仍待对应设备验收。
+
+- 0.1.1+2 Android Debug APK 签名校验通过，macOS Release 构建通过，iOS 模拟器构建通过（不代表真机路由选择验收）。
+- 新版产物：`artifacts/HiMusic-0.1.1-android-debug.apk`、`artifacts/HiMusic-0.1.1-macos.zip`。

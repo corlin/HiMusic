@@ -19,7 +19,7 @@ macOS / Windows 可选择本地音乐目录。手机本地目录导入、后台�
 
 ## Android / Google TV 开发包
 
-本机产物：`artifacts/HiMusic-0.1.0-android-debug.apk`（Android 7.0+，调试签名）。真实电视尚未安装验收。
+本机产物：`artifacts/HiMusic-0.1.1-android-debug.apk`（Android 7.0+，调试签名）。真实电视尚未安装验收。
 
 ```sh
 ./scripts/flutter.sh build apk --debug
@@ -46,3 +46,8 @@ macOS / Windows 可选择本地音乐目录。手机本地目录导入、后台�
 - 应用暂未签名发布，不提供商店安装包。
 
 产品要求见 [SPEC.md](SPEC.md)，实现和验收记录见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
+
+
+## 音量与音频输出（0.1.1）
+
+顶部声音按钮和播放栏提供 0–100% 应用音量、静音与恢复。选择“音频输出设备”：macOS 可在列表中选择系统默认输出（影响其他应用），Android 使用系统选择器或声音设置，iOS 使用系统路由按钮，Windows 打开声音设置。这不是跨设备播放接力或遥控电视功能。

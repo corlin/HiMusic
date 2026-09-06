@@ -6,6 +6,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'playback/player_controller.dart';
+import 'playback/volume_controls.dart';
+import 'playback/output_devices.dart';
 import 'sources/local_source.dart';
 import 'sources/smb_source.dart';
 
@@ -95,6 +97,36 @@ class _LibraryPageState extends State<LibraryPage> {
           appBar: AppBar(
             title: const Text('HiMusic'),
             actions: [
+              IconButton(
+                tooltip: '音量与输出设备',
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('声音'),
+                    content: SizedBox(
+                      width: 400,
+                      child: VolumeControls(controller: c),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          showDialog<void>(
+                            context: context,
+                            builder: (_) => const OutputDeviceDialog(),
+                          );
+                        },
+                        child: const Text('选择输出设备'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('完成'),
+                      ),
+                    ],
+                  ),
+                ),
+                icon: const Icon(Icons.volume_up_outlined),
+              ),
               IconButton(
                 tooltip: tvMode ? '标准布局' : '电视布局',
                 onPressed: () => setState(() => tvMode = !tvMode),
@@ -295,6 +327,15 @@ class PlayerBar extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: Colors.white54),
             ),
             SeekBar(controller: c),
+            VolumeControls(controller: c),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const OutputDeviceDialog(),
+              ),
+              icon: const Icon(Icons.speaker_group_outlined),
+              label: const Text('音频输出设备'),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

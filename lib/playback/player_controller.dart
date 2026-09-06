@@ -18,6 +18,11 @@ class PlayerController extends ChangeNotifier {
   bool busy = false;
   bool _disposed = false;
   bool _wantsPlayback = false;
+  double? _pendingVolume;
+  double _lastAudibleVolume = 1;
+  Future<void>? _volumeWork;
+  String? volumeError;
+  double get volume => _pendingVolume ?? player.volume;
   Future<void> Function()? _retryAction;
   Completer<void>? _operation;
   Future<void>? _shutdownFuture;
@@ -25,6 +30,7 @@ class PlayerController extends ChangeNotifier {
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
   PlayerController() {
+    _subscriptions.add(player.volumeStream.listen((_) => _changed()));
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
     _subscriptions.add(player.currentIndexStream.listen((_) => _changed()));
     _subscriptions.add(
@@ -167,6 +173,33 @@ class PlayerController extends ChangeNotifier {
     }),
   );
 
+  Future<void> setVolume(double value) {
+    if (_disposed || !value.isFinite) return Future.value();
+    _pendingVolume = value.clamp(0.0, 1.0);
+    if (_pendingVolume! > 0) _lastAudibleVolume = _pendingVolume!;
+    volumeError = null;
+    _changed();
+    return _volumeWork ??= _drainVolume();
+  }
+
+  Future<void> _drainVolume() async {
+    try {
+      while (_pendingVolume != null) {
+        final target = _pendingVolume!;
+        await player.setVolume(target);
+        if (_pendingVolume == target) _pendingVolume = null;
+      }
+    } catch (_) {
+      _pendingVolume = null;
+      volumeError = '音量调整失败，请重试。';
+    } finally {
+      _volumeWork = null;
+      _changed();
+    }
+  }
+
+  Future<void> toggleMute() => setVolume(volume > 0 ? 0 : _lastAudibleVolume);
+
   Future<void> shutdown() => _shutdownFuture ??= _shutdown();
 
   Future<void> _shutdown() async {
@@ -176,6 +209,7 @@ class PlayerController extends ChangeNotifier {
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
+    await _volumeWork;
     await player.dispose();
     await _bridge?.close();
     await source?.close();

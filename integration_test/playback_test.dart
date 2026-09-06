@@ -101,6 +101,24 @@ void main() {
     expect(delayed.source, isNull);
     await directory.delete(recursive: true);
   });
+  testWidgets('音量支持最终值与静音恢复', (tester) async {
+    final c = PlayerController();
+    try {
+      await c.setVolume(0.37);
+      expect(c.player.volume, closeTo(0.37, 0.001));
+      await c.toggleMute();
+      expect(c.player.volume, 0);
+      await c.toggleMute();
+      expect(c.player.volume, closeTo(0.37, 0.001));
+      final first = c.setVolume(0.1);
+      final last = c.setVolume(0.62);
+      await Future.wait([first, last]);
+      expect(c.player.volume, closeTo(0.62, 0.001));
+      expect(c.volumeError, isNull);
+    } finally {
+      await c.shutdown();
+    }
+  });
 }
 
 class FailingSource implements MusicSource {
