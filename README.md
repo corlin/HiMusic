@@ -1,75 +1,76 @@
 # HiMusic
 
-家庭共享硬盘音乐播放器。当前为 V0 原型：Flutter 多端工程、只读 SMB 2/3 连接、本地目录、范围读取音频桥接、播放队列与电视布局入口。
+**English** · [简体中文](README.zh-CN.md)
 
-![HiMusic macOS 资料库与动态波形界面](artifacts/design-qa/implementation-option-1.png)
+### Your lossless music. Shared at home. Ready on every screen.
 
-## 启动
+HiMusic turns the USB drive attached to your home router into a private family music library. It connects directly through SMB, plays FLAC and other local audio files, and does not require a NAS, cloud account, or always-on media server.
 
-本机已将 Flutter 3.47.2 安装在 `.tooling/flutter`（不提交到仓库）。
+![HiMusic library and high-resolution waveform on macOS](artifacts/design-qa/implementation-option-1.png)
 
-```sh
-.tooling/flutter/bin/flutter pub get
-.tooling/flutter/bin/flutter run -d macos
+## One library, every screen
+
+HiMusic is being built as one product for **Windows, macOS, iOS, Android, and Android TV / Google TV**. Each device reads from the same shared music folder while keeping its own playback queue, volume, and listening session.
+
+| Platform | Intended experience | Current prototype status |
+| --- | --- | --- |
+| macOS | Full desktop library and audio-output selection | Release build verified with local FLAC playback and waveform rendering |
+| Windows | Desktop library for mouse and keyboard | Project target included; Windows-host validation is still required |
+| iPhone / iPad | Touch-first personal player | Simulator build verified; device import and background playback remain planned |
+| Android | Touch-first personal player | Debug build available; physical-device validation remains planned |
+| Android TV / Google TV | Living-room player with a large-screen layout | TV layout included; remote-control and real-TV playback still need validation |
+
+## What HiMusic can do today
+
+- **Play from your router:** connect to an SMB 2/3 share such as a USB drive attached to a ZTE Wentian BE7200 MAX.
+- **Play local folders:** open music stored directly on a desktop computer.
+- **Keep the original audio:** stream FLAC files with ranged reads and client-side decoding, without server transcoding.
+- **Show the music in detail:** browse a smooth, high-resolution waveform with zoomable detail, a full-track overview, and click-or-drag seeking.
+- **Control playback:** play, pause, skip, seek, retry failed reads, and manage an independent queue on each device.
+- **Control your listening device:** adjust app volume, mute and restore, and open platform-appropriate audio-output controls.
+- **Fit the room:** use the compact desktop layout or switch to a larger TV-oriented presentation.
+- **Protect the source library:** SMB access is read-only, and the prototype never deletes, renames, or rewrites music files.
+
+## Made for a simple home setup
+
+```text
+USB hard drive
+      │
+Home router with SMB
+      │
+      ├── macOS / Windows
+      ├── iPhone / Android phone
+      └── Android TV / Google TV
 ```
 
-其他开发机安装同版本 Flutter 后，使用标准 `flutter` 命令。Windows 构建需要 Windows 工具链；Android / iOS 分别需要对应 SDK。
+There is no central playback session: one person can listen on a computer while someone else plays a different album on the TV. The router only shares files; it does not need Docker, Navidrome, or a transcoding service.
 
-选择“连接 SMB 共享硬盘”，填写路由器 IP、共享名称、可选音乐目录及账号密码。密码仅保留在当前进程内；退出后重新输入。原型不提供源文件写操作。
+## Current product boundaries
 
-macOS / Windows 可选择本地音乐目录。手机本地目录导入、后台媒体服务和连接持久化尚未实现。电视可通过右上角电视按钮切换大字号布局；真实遥控器仍需验收。
+HiMusic 0.3.0 is a working prototype rather than a store-ready release. Tag-based artists and albums, persistent favorites and playlists, mobile background controls, account sync, offline downloads, and phone-to-TV control are still on the roadmap. Real-router concurrency, TV remote navigation, sleep recovery, and device-specific high-resolution output also need hardware testing.
 
-## Android / Google TV 开发包
+HiMusic reads original FLAC data, but this alone does not guarantee bit-perfect output; the operating system and playback device still control the final audio path.
 
-本机产物：`artifacts/HiMusic-0.2.0-android-debug.apk`（Android 7.0+，调试签名）。真实电视尚未安装验收。
+## Run the prototype
+
+HiMusic currently uses Flutter 3.47.2.
+
+```sh
+./scripts/flutter.sh pub get
+./scripts/flutter.sh run -d macos
+```
+
+Build the Android / Google TV debug package with:
 
 ```sh
 ./scripts/flutter.sh build apk --debug
 ```
 
-脚本为当前工作区选择私有 Flutter、Android SDK 和 Gradle 缓存，避免用户全局 Gradle 镜像配置干扰。
+Inside the app, choose **Open Local Folder** for music on the computer, or **Connect SMB Share** for a router-connected drive. SMB passwords stay in memory for the current session and are not saved to disk.
 
-## 验证
+## Product and development notes
 
-```sh
-.tooling/flutter/bin/flutter analyze
-.tooling/flutter/bin/flutter test
-.tooling/flutter/bin/flutter test integration_test/playback_test.dart -d macos
-```
-
-集成测试使用自生成 4 秒正弦波 FLAC，以静音音量运行原生解码、读取播放位置并执行跳转。测试不代表真实路由器、电视扬声器输出规格或无缝播放验收。
-
-## 当前边界
-
-- 目录播放器，尚无标签索引、SQLite 音乐库、收藏与歌单持久化。
-- 共享源文件，各设备队列独立；没有家庭账号及跨设备同步。
-- FLAC 原文件传输，不提供服务端转码，不声称 bit-perfect。
-- SMB 错误可重试；连接兼容性、双设备并发和休眠恢复待实机验证。
-- 应用暂未签名发布，不提供商店安装包。
-
-产品要求见 [SPEC.md](SPEC.md)，实现和验收记录见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
-
-
-## 音量与音频输出（0.1.1）
-
-顶部声音按钮和播放栏提供 0–100% 应用音量、静音与恢复。选择“音频输出设备”：macOS 可在列表中选择系统默认输出（影响其他应用），Android 使用系统选择器或声音设置，iOS 使用系统路由按钮，Windows 打开声音设置。这不是跨设备播放接力或遥控电视功能。
-
-## 音频波形（0.1.2）
-
-播放栏展示整首音频的真实振幅轮廓，已播放部分高亮。点击或拖动波形可定位，聚焦后左右方向键调整五秒。Android / Google TV、iOS、macOS 使用原生解码生成波形；Windows 暂显示不支持，原有进度条仍可用。
-
-首次分析需要将当前曲目分块复制到临时目录；播放缓冲时暂停复制。单曲超过 256 MiB 时跳过分析，最多缓存八首已分析曲目的峰值（当前来源、当前进程）。临时音频在分析完成或失败后删除，音频播放仍从原来源流式读取。快速切歌会丢弃旧结果；已启动的原生分析无法中途取消，新曲目的分析需等待它完成。分析失败不影响音乐播放。
-
-macOS 请使用 0.1.3 或更高版本。0.1.2 在首次启动、系统缓存目录尚未建立时无法生成波形。
-
-## 动态高解析波形（0.2.0）
-
-波形基础解析度提升到 512 峰值对/秒。上方细节视图随播放头平滑滚动，可切换 5、10、30、60、120 秒及整曲窗口；下方概览显示整曲、当前播放位置与细节窗口范围。两个视图均支持点击或拖动定位。
-
-渲染使用 min/max 峰值金字塔，只查询当前视口所需层级，工作量受屏幕宽度约束。峰值保留相对于数字满幅的真实线性振幅，显示阶段使用视觉增益呈现安静细节。已生成结果原子写入 256 MiB 磁盘 LRU 缓存，来源路径、大小或修改时间变化时自动失效。
-
-设计依据与性能边界见 [动态波形研究](docs/research/dynamic-waveform.md)。
-
-## 资料库界面（0.3.0）
-
-桌面端采用深森林色资料库界面：左侧集中导航与音乐源，中部以专辑陈列和紧凑曲目表呈现内容，底部播放器同时容纳封面、播放控制、动态波形、输出设备与音量。搜索会即时筛选当前目录，电视模式入口会切换更适合远距离浏览的字号和间距；窄窗口则自动收拢为移动端布局。
+- [Product specification](SPEC.md)
+- [Implementation and validation history](docs/DEVELOPMENT.md)
+- [High-resolution waveform research](docs/research/dynamic-waveform.md)
+- [UI design QA](design-qa.md)
