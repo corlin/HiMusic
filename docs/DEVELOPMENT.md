@@ -56,3 +56,5 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - 正常应用入口 macOS 原生测试通过：首屏显示、键盘打开连接表单、切换电视布局，无框架异常。
 - 初次窗口查看命中了集成测试遗留进程的黑色窗口；清理该进程后使用正常入口原生测试验证。不可把测试结束后的窗口当作正常运行结果。
 - 本机产物位于 `artifacts/`，不提交大型二进制文件。Android 为开发调试签名包，macOS 为本机构建，不是商店签名/公证发布版。
+- macOS Release 构建成功（构建目录约 46 MB），复制为 `artifacts/HiMusic.app` 并打包 ZIP；通过实际窗口截图确认正常首屏显示。
+- 产物校验和写入 `artifacts/SHA256SUMS.txt`。
