@@ -2,6 +2,8 @@
 
 家庭共享硬盘音乐播放器。当前为 V0 原型：Flutter 多端工程、只读 SMB 2/3 连接、本地目录、范围读取音频桥接、播放队列与电视布局入口。
 
+![HiMusic macOS 资料库与动态波形界面](artifacts/design-qa/implementation-option-1.png)
+
 ## 启动
 
 本机已将 Flutter 3.47.2 安装在 `.tooling/flutter`（不提交到仓库）。
