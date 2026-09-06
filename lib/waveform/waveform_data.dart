@@ -9,9 +9,8 @@ class WavePeak {
 }
 
 class WaveformSlice {
-  const WaveformSlice(this.peaks, this.sourceSamplesVisited);
+  const WaveformSlice(this.peaks);
   final List<WavePeak> peaks;
-  final int sourceSamplesVisited;
 }
 
 /// Pre-computed min/max levels. Each level combines two points from the
@@ -41,7 +40,7 @@ class WaveformPyramid {
 
   WaveformSlice query(int start, int end, {required int targetPoints}) {
     if (length == 0 || targetPoints < 1) {
-      return const WaveformSlice([], 0);
+      return const WaveformSlice([]);
     }
     final safeStart = start.clamp(0, length - 1);
     final safeEnd = end.clamp(safeStart + 1, length);
@@ -56,7 +55,7 @@ class WaveformPyramid {
     final first = safeStart ~/ group;
     final last = min(level.length, (safeEnd / group).ceil());
     final result = _WavePeakView(level, first, last);
-    return WaveformSlice(result, result.length);
+    return WaveformSlice(result);
   }
 }
 

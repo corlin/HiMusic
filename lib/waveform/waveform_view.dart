@@ -32,6 +32,7 @@ class _WaveformViewState extends State<WaveformView> {
   static const totalHeight = 126.0;
 
   late WaveformPyramid pyramid;
+  late WaveformRenderCache renderCache;
   Duration? dragging;
   bool focused = false;
 
@@ -39,6 +40,7 @@ class _WaveformViewState extends State<WaveformView> {
   void initState() {
     super.initState();
     pyramid = WaveformPyramid(widget.peaks);
+    renderCache = WaveformRenderCache(pyramid);
   }
 
   @override
@@ -46,6 +48,7 @@ class _WaveformViewState extends State<WaveformView> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.peaks, widget.peaks)) {
       pyramid = WaveformPyramid(widget.peaks);
+      renderCache = WaveformRenderCache(pyramid);
       dragging = null;
     }
   }
@@ -64,7 +67,7 @@ class _WaveformViewState extends State<WaveformView> {
     final duration = widget.duration.inMicroseconds;
     final window = visibleWindow.inMicroseconds;
     if (duration <= window || window <= 0) return Duration.zero;
-    final center = (dragging ?? widget.position).inMicroseconds;
+    final center = widget.position.inMicroseconds;
     return Duration(
       microseconds: (center - window ~/ 2).clamp(0, duration - window),
     );
@@ -148,6 +151,7 @@ class _WaveformViewState extends State<WaveformView> {
               size: const Size(double.infinity, totalHeight),
               painter: DynamicWaveformPainter(
                 pyramid: pyramid,
+                renderCache: renderCache,
                 position: dragging ?? widget.position,
                 duration: widget.duration,
                 visibleStart: visibleStart,
@@ -168,6 +172,7 @@ class _WaveformViewState extends State<WaveformView> {
 class DynamicWaveformPainter extends CustomPainter {
   const DynamicWaveformPainter({
     required this.pyramid,
+    required this.renderCache,
     required this.position,
     required this.duration,
     required this.visibleStart,
@@ -178,6 +183,7 @@ class DynamicWaveformPainter extends CustomPainter {
   });
 
   final WaveformPyramid pyramid;
+  final WaveformRenderCache renderCache;
   final Duration position;
   final Duration duration;
   final Duration visibleStart;
@@ -198,27 +204,43 @@ class DynamicWaveformPainter extends CustomPainter {
     final detail = Rect.fromLTWH(0, 0, size.width, 88);
     final overview = Rect.fromLTWH(0, 96, size.width, 30);
     _drawGrid(canvas, detail);
-    final detailStart = (fraction(visibleStart) * pyramid.length).floor();
-    final detailEnd = (fraction(visibleStart + visibleWindow) * pyramid.length)
-        .ceil();
-    final detailSlice = pyramid.query(
-      detailStart,
-      detailEnd,
-      targetPoints: max(1, (size.width / 2).round()),
+    final windowMicros = max(1, visibleWindow.inMicroseconds);
+    final tileMicros = max(1, windowMicros ~/ 2);
+    final tileIndex = visibleStart.inMicroseconds ~/ tileMicros;
+    final cachedStart = Duration(microseconds: tileIndex * tileMicros);
+    final cachedEnd = Duration(
+      microseconds: min(
+        duration.inMicroseconds,
+        cachedStart.inMicroseconds + windowMicros + tileMicros,
+      ),
     );
     final detailPlayhead = visibleWindow.inMicroseconds <= 0
         ? 0.0
         : ((position - visibleStart).inMicroseconds /
                   visibleWindow.inMicroseconds)
               .clamp(0.0, 1.0);
-    _drawEnvelope(canvas, detail, detailSlice.peaks, detailPlayhead);
-
-    final overviewSlice = pyramid.query(
-      0,
-      pyramid.length,
-      targetPoints: max(1, (size.width / 3).round()),
+    _drawCachedEnvelope(
+      canvas,
+      detail,
+      cacheKey: 'detail:${visibleWindow.inMicroseconds}:$tileIndex',
+      dataStart: cachedStart,
+      dataEnd: cachedEnd,
+      viewStart: visibleStart,
+      viewDuration: visibleWindow,
+      playedFraction: detailPlayhead,
+      pointsPerLogicalPixel: 0.5,
     );
-    _drawEnvelope(canvas, overview, overviewSlice.peaks, fraction(position));
+    _drawCachedEnvelope(
+      canvas,
+      overview,
+      cacheKey: 'overview',
+      dataStart: Duration.zero,
+      dataEnd: duration,
+      viewStart: Duration.zero,
+      viewDuration: duration,
+      playedFraction: fraction(position),
+      pointsPerLogicalPixel: 1 / 3,
+    );
     final viewport = Rect.fromLTRB(
       overview.left + fraction(visibleStart) * overview.width,
       overview.top,
@@ -275,32 +297,35 @@ class DynamicWaveformPainter extends CustomPainter {
     );
   }
 
-  void _drawEnvelope(
+  void _drawCachedEnvelope(
     Canvas canvas,
-    Rect rect,
-    List<WavePeak> peaks,
-    double playedFraction,
-  ) {
-    if (peaks.isEmpty) return;
-    final envelope = Path();
-    final amplitude = rect.height / 2 - 3;
-    for (var index = 0; index < peaks.length; index++) {
-      final x = peaks.length == 1
-          ? rect.center.dx
-          : rect.left + index * rect.width / (peaks.length - 1);
-      final y = rect.center.dy - _display(peaks[index].high) * amplitude;
-      index == 0 ? envelope.moveTo(x, y) : envelope.lineTo(x, y);
-    }
-    for (var index = peaks.length - 1; index >= 0; index--) {
-      final x = peaks.length == 1
-          ? rect.center.dx
-          : rect.left + index * rect.width / (peaks.length - 1);
-      envelope.lineTo(
-        x,
-        rect.center.dy - _display(peaks[index].low) * amplitude,
-      );
-    }
-    envelope.close();
+    Rect rect, {
+    required String cacheKey,
+    required Duration dataStart,
+    required Duration dataEnd,
+    required Duration viewStart,
+    required Duration viewDuration,
+    required double playedFraction,
+    required double pointsPerLogicalPixel,
+  }) {
+    final dataMicros = max(1, (dataEnd - dataStart).inMicroseconds);
+    final viewMicros = max(1, viewDuration.inMicroseconds);
+    final cachedWidth = rect.width * dataMicros / viewMicros;
+    final envelope = renderCache.path(
+      '$cacheKey:${rect.width.round()}:${rect.height.round()}',
+      start: (fraction(dataStart) * pyramid.length).floor(),
+      end: (fraction(dataEnd) * pyramid.length).ceil(),
+      width: cachedWidth,
+      height: rect.height,
+      targetPoints: max(1, (cachedWidth * pointsPerLogicalPixel).round()),
+    );
+    final offsetX =
+        rect.left -
+        (viewStart - dataStart).inMicroseconds / dataMicros * cachedWidth;
+    final shaderRect = Rect.fromLTWH(0, 0, cachedWidth, rect.height);
+    canvas.save();
+    canvas.clipRect(rect);
+    canvas.translate(offsetX, rect.top);
     canvas.drawPath(
       envelope,
       Paint()
@@ -308,8 +333,9 @@ class DynamicWaveformPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [remaining.withValues(alpha: 0.75), remaining],
-        ).createShader(rect),
+        ).createShader(shaderRect),
     );
+    canvas.restore();
     canvas.save();
     canvas.clipRect(
       Rect.fromLTRB(
@@ -319,6 +345,7 @@ class DynamicWaveformPainter extends CustomPainter {
         rect.bottom,
       ),
     );
+    canvas.translate(offsetX, rect.top);
     canvas.drawPath(
       envelope,
       Paint()
@@ -326,7 +353,7 @@ class DynamicWaveformPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [played.withValues(alpha: 0.72), played],
-        ).createShader(rect),
+        ).createShader(shaderRect),
     );
     canvas.restore();
     final playheadX = (rect.left + playedFraction * rect.width).clamp(
@@ -342,9 +369,6 @@ class DynamicWaveformPainter extends CustomPainter {
     );
   }
 
-  double _display(double value) =>
-      value.sign * pow(value.abs(), 0.65).toDouble();
-
   @override
   bool shouldRepaint(covariant DynamicWaveformPainter old) =>
       !identical(pyramid, old.pyramid) ||
@@ -355,4 +379,57 @@ class DynamicWaveformPainter extends CustomPainter {
       played != old.played ||
       remaining != old.remaining ||
       focused != old.focused;
+}
+
+/// Retains immutable envelope paths while the playhead moves inside a tile.
+/// A new detail path is built only after half a viewport of scrolling.
+class WaveformRenderCache {
+  WaveformRenderCache(this.pyramid);
+
+  final WaveformPyramid pyramid;
+  final Map<String, Path> _paths = {};
+  int pathBuildCount = 0;
+
+  Path path(
+    String key, {
+    required int start,
+    required int end,
+    required double width,
+    required double height,
+    required int targetPoints,
+  }) {
+    final existing = _paths.remove(key);
+    if (existing != null) {
+      _paths[key] = existing;
+      return existing;
+    }
+    final peaks = pyramid.query(start, end, targetPoints: targetPoints).peaks;
+    final result = Path();
+    final amplitude = height / 2 - 3;
+    for (var index = 0; index < peaks.length; index++) {
+      final x = peaks.length == 1
+          ? width / 2
+          : index * width / (peaks.length - 1);
+      final y = height / 2 - _display(peaks[index].high) * amplitude;
+      if (index == 0) {
+        result.moveTo(x, y);
+      } else {
+        result.lineTo(x, y);
+      }
+    }
+    for (var index = peaks.length - 1; index >= 0; index--) {
+      final x = peaks.length == 1
+          ? width / 2
+          : index * width / (peaks.length - 1);
+      result.lineTo(x, height / 2 - _display(peaks[index].low) * amplitude);
+    }
+    result.close();
+    pathBuildCount++;
+    _paths[key] = result;
+    if (_paths.length > 8) _paths.remove(_paths.keys.first);
+    return result;
+  }
+
+  double _display(double value) =>
+      value.sign * pow(value.abs(), 0.65).toDouble();
 }

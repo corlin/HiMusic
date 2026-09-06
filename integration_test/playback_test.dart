@@ -129,6 +129,8 @@ class FailingSource implements MusicSource {
   @override
   String get label => inner.label;
   @override
+  String get cacheNamespace => 'test:${inner.cacheNamespace}';
+  @override
   Future<List<MusicEntry>> list(String path) async {
     if (failNextList) {
       failNextList = false;

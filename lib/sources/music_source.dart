@@ -42,6 +42,7 @@ String safePath(String path) {
 
 abstract interface class MusicSource {
   String get label;
+  String get cacheNamespace;
   Future<List<MusicEntry>> list(String directory);
   Future<Uint8List> read(String path, int offset, int length);
   Future<void> close();

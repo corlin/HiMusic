@@ -24,6 +24,8 @@ class SmbSource implements MusicSource {
   final Smb2Pool _pool;
   @override
   final String label;
+  @override
+  String get cacheNamespace => label;
   static Future<SmbSource> connect({
     required String host,
     required String share,

@@ -66,7 +66,7 @@ void main() {
       }
       expect(find.byType(WaveformView), findsOneWidget);
       expect(tester.getSize(find.byType(WaveformView)).height, 126);
-      expect(find.text('15 秒'), findsOneWidget);
+      expect(find.text('10 秒'), findsOneWidget);
       await tester.tap(find.byKey(const Key('waveform-zoom-in')));
       await tester.pump();
       expect(find.text('5 秒'), findsOneWidget);

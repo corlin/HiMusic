@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -17,7 +18,7 @@ class PlayerWaveform extends StatefulWidget {
 }
 
 class _PlayerWaveformState extends State<PlayerWaveform> {
-  static const windows = [5, 15, 30, 60];
+  static const windows = [5, 10, 30, 60, 120, 0];
   int zoomIndex = 1;
 
   @override
@@ -28,22 +29,21 @@ class _PlayerWaveformState extends State<PlayerWaveform> {
       if (wave.peaks.isEmpty) {
         return SizedBox(
           height: 126,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (wave.progress != null)
-                  SizedBox(
-                    width: 180,
-                    child: LinearProgressIndicator(value: wave.progress),
-                  ),
-                const SizedBox(height: 6),
-                Text(
-                  wave.message ?? '准备高解析音频波形…',
-                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (wave.progress != null)
+                SizedBox(
+                  width: 180,
+                  child: LinearProgressIndicator(value: wave.progress),
                 ),
-              ],
-            ),
+              const SizedBox(height: 6),
+              Text(
+                wave.message ?? '准备高解析音频波形…',
+                style: const TextStyle(fontSize: 12, color: Colors.white54),
+              ),
+              _CompactSeekBar(controller: widget.controller),
+            ],
           ),
         );
       }
@@ -71,7 +71,7 @@ class _PlayerWaveformState extends State<PlayerWaveform> {
                 icon: const Icon(Icons.remove, size: 18),
               ),
               Text(
-                '${windows[zoomIndex]} 秒',
+                windows[zoomIndex] == 0 ? '整曲' : '${windows[zoomIndex]} 秒',
                 key: const Key('waveform-window-label'),
                 style: const TextStyle(
                   fontFeatures: [FontFeature.tabularFigures()],
@@ -96,12 +96,52 @@ class _PlayerWaveformState extends State<PlayerWaveform> {
               controller: widget.controller,
               peaks: wave.peaks,
               duration: duration.data ?? Duration.zero,
-              window: Duration(seconds: windows[zoomIndex]),
+              window: windows[zoomIndex] == 0
+                  ? duration.data ?? Duration.zero
+                  : Duration(seconds: windows[zoomIndex]),
             ),
           ),
         ],
       );
     },
+  );
+}
+
+class _CompactSeekBar extends StatefulWidget {
+  const _CompactSeekBar({required this.controller});
+  final PlayerController controller;
+
+  @override
+  State<_CompactSeekBar> createState() => _CompactSeekBarState();
+}
+
+class _CompactSeekBarState extends State<_CompactSeekBar> {
+  double? pending;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<Duration?>(
+    stream: widget.controller.player.durationStream,
+    initialData: widget.controller.player.duration,
+    builder: (context, duration) => StreamBuilder<Duration>(
+      stream: widget.controller.player.positionStream,
+      initialData: widget.controller.player.position,
+      builder: (context, position) {
+        final total = duration.data ?? Duration.zero;
+        final maximum = max(1, total.inMilliseconds).toDouble();
+        final value = pending ?? position.data?.inMilliseconds.toDouble() ?? 0;
+        return Slider(
+          value: value.clamp(0, maximum),
+          max: maximum,
+          onChanged: widget.controller.busy || total <= Duration.zero
+              ? null
+              : (next) => setState(() => pending = next),
+          onChangeEnd: (next) async {
+            await widget.controller.seek(Duration(milliseconds: next.round()));
+            if (mounted) setState(() => pending = null);
+          },
+        );
+      },
+    ),
   );
 }
 

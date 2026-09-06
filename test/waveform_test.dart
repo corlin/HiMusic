@@ -64,6 +64,12 @@ void main() {
     expect(target, const Duration(seconds: 55));
     await tester.tapAt(Offset(rect.left + rect.width * .75, rect.bottom - 8));
     expect(target, const Duration(seconds: 75));
+    target = null;
+    final drag = await tester.startGesture(rect.center);
+    await drag.moveTo(Offset(rect.left + rect.width * .75, rect.top + 30));
+    await drag.moveTo(Offset(rect.center.dx, rect.top + 30));
+    await drag.up();
+    expect(target, const Duration(seconds: 50));
   });
 
   test('multi-resolution query stays bounded and preserves extrema', () {
@@ -75,7 +81,6 @@ void main() {
     final pyramid = WaveformPyramid(peaks);
     final slice = pyramid.query(0, peaks.length, targetPoints: 900);
     expect(slice.peaks.length, lessThanOrEqualTo(1800));
-    expect(slice.sourceSamplesVisited, lessThanOrEqualTo(1800));
     expect(slice.peaks.any((peak) => peak.high == 1), isTrue);
   });
 }

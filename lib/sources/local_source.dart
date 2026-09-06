@@ -12,6 +12,8 @@ class LocalSource implements MusicSource {
       LocalSource._(await Directory(root).resolveSymbolicLinks());
   @override
   String get label => p.basename(root);
+  @override
+  String get cacheNamespace => root;
 
   Future<String> _resolve(String path) async {
     final joined = p.join(root, safePath(path));

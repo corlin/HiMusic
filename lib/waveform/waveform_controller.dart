@@ -67,7 +67,7 @@ class WaveformController extends ChangeNotifier {
   void show(MusicSource source, MusicEntry entry) {
     if (_closed) return;
     final key =
-        '${source.label}\u0000${entry.path}\u0000${entry.size}\u0000${entry.modified?.microsecondsSinceEpoch}';
+        '${source.cacheNamespace}\u0000${entry.path}\u0000${entry.size}\u0000${entry.modified?.microsecondsSinceEpoch}';
     if (identical(source, _source) && key == _key) return;
     if (!identical(source, _source)) _cache.clear();
     _source = source;
