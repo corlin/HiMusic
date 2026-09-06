@@ -81,3 +81,11 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - macOS 原生测试通过：生成 PCM 音频的静音/有声区间与波形一致；16/44.1、24/96、24/192 FLAC 均成功提取。既有三项原生播放/跳转/重试/音量回归通过。
 - Windows 暂不支持波形；真实路由器读取性能、Android TV 遥控器与 iOS 真机波形尚待验收。
 - Android Debug APK（签名校验通过）、macOS Release 和 iOS 模拟器编译通过。0.1.2 产物与 SHA-256 位于 `artifacts/`；不代表对应移动设备真机验收。
+
+## 0.1.3 macOS 波形修复（2026-09-06）
+
+- 修复 macOS 沙盒返回的缓存目录尚不存在时，`createTemp` 抛出 `PathNotFoundException`，导致所有 FLAC 只显示波形失败的问题。
+- 新增缓存根目录缺失回归测试，以及播放器联动的 macOS 波形界面测试。
+- 使用 `/Users/corlin/Desktop/music` 中的真实 FLAC，经测试容器授权副本验证：原生峰值提取成功，播放栏显示 64 px 波形。
+- 13 项单元/组件测试、macOS 波形界面测试及三类 FLAC 播放回归通过；macOS Release 与 Android Debug 构建通过。
+- 修复版产物为 `HiMusic-0.1.3-macos.zip` 与 `HiMusic-0.1.3-android-debug.apk`。

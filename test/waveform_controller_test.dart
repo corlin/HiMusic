@@ -7,6 +7,40 @@ import 'package:himusic/waveform/waveform_controller.dart';
 import 'package:himusic/waveform/waveform_data.dart';
 
 void main() {
+  test(
+    'creates a missing platform cache directory before extraction',
+    () async {
+      final parent = await Directory.systemTemp.createTemp('wave-cache-test-');
+      final missingRoot = Directory('${parent.path}/nested/cache');
+      final extracted = Completer<void>();
+      final controller = WaveformController(
+        supported: true,
+        temporaryDirectory: () async => missingRoot,
+        extract: (_, _) async {
+          extracted.complete();
+          return const [WavePeak(-1, 1)];
+        },
+      );
+      try {
+        await File('${parent.path}/a.flac').writeAsBytes([1]);
+        final source = await LocalSource.open(parent.path);
+        final ready = Completer<void>();
+        controller.addListener(() {
+          if (controller.peaks.isNotEmpty && !ready.isCompleted) {
+            ready.complete();
+          }
+        });
+        controller.show(source, (await source.list('')).single);
+        await extracted.future.timeout(const Duration(seconds: 2));
+        await ready.future.timeout(const Duration(seconds: 2));
+        expect(controller.peaks, isNotEmpty);
+      } finally {
+        await controller.close();
+        await parent.delete(recursive: true);
+      }
+    },
+  );
+
   test('close does not wait for uncancellable native analysis', () async {
     final root = await Directory.systemTemp.createTemp('wave-close-test-');
     final started = Completer<void>();

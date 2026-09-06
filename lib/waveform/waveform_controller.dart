@@ -107,6 +107,8 @@ class WaveformController extends ChangeNotifier {
         try {
           final root = await _temporaryDirectory();
           if (!_active(job.generation)) continue;
+          await root.create(recursive: true);
+          if (!_active(job.generation)) continue;
           work = await root.createTemp('himusic-wave-');
           final audio = File('${work.path}/audio.${job.entry.extension}');
           final handle = await audio.open(mode: FileMode.write);
