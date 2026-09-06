@@ -39,6 +39,7 @@ class LocalSource implements MusicSource {
         name: p.basename(entry.path),
         isDirectory: stat.type == FileSystemEntityType.directory,
         size: stat.size,
+        modified: stat.modified,
       );
       if (item.isDirectory || item.isAudio) result.add(item);
     }

@@ -63,6 +63,7 @@ class SmbSource implements MusicSource {
               name: e.name,
               isDirectory: e.isDirectory,
               size: e.size,
+              modified: e.stat.modified,
             ),
           )
           .where((e) => e.isDirectory || e.isAudio),

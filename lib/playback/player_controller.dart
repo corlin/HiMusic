@@ -6,9 +6,21 @@ import 'package:just_audio/just_audio.dart';
 import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
 import 'audio_bridge.dart';
+import '../waveform/waveform_controller.dart';
 
 class PlayerController extends ChangeNotifier {
   final AudioPlayer player = AudioPlayer();
+  late final WaveformController waveform = WaveformController(
+    playbackReady: () =>
+        player.processingState != ProcessingState.loading &&
+        player.processingState != ProcessingState.buffering,
+  );
+  void _syncWaveform() {
+    final entry = current;
+    final origin = source;
+    if (entry != null && origin != null) waveform.show(origin, entry);
+  }
+
   MusicSource? source;
   AudioBridge? _bridge;
   String directory = '';
@@ -32,7 +44,12 @@ class PlayerController extends ChangeNotifier {
   PlayerController() {
     _subscriptions.add(player.volumeStream.listen((_) => _changed()));
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
-    _subscriptions.add(player.currentIndexStream.listen((_) => _changed()));
+    _subscriptions.add(
+      player.currentIndexStream.listen((_) {
+        _syncWaveform();
+        _changed();
+      }),
+    );
     _subscriptions.add(
       player.errorStream.listen((_) {
         error = '播放中断，请检查网络或文件格式，然后按重试。';
@@ -81,6 +98,7 @@ class PlayerController extends ChangeNotifier {
           await player.stop();
           await _bridge?.close();
           _bridge = null;
+          await waveform.reset();
           await source?.close();
           source = next;
           committed = true;
@@ -116,6 +134,7 @@ class PlayerController extends ChangeNotifier {
       _audioSources,
       initialIndex: queue.indexOf(entry),
     );
+    _syncWaveform();
     unawaited(_play());
   });
   Future<void> _play() async {
@@ -211,6 +230,7 @@ class PlayerController extends ChangeNotifier {
     }
     await _volumeWork;
     await player.dispose();
+    await waveform.close();
     await _bridge?.close();
     await source?.close();
   }

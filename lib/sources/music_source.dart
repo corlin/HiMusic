@@ -6,11 +6,13 @@ class MusicEntry {
     required this.name,
     required this.isDirectory,
     required this.size,
+    this.modified,
   });
   final String path;
   final String name;
   final bool isDirectory;
   final int size;
+  final DateTime? modified;
   String get extension => name.split('.').last.toLowerCase();
   bool get isAudio =>
       !isDirectory &&

@@ -8,6 +8,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'playback/player_controller.dart';
 import 'playback/volume_controls.dart';
 import 'playback/output_devices.dart';
+import 'waveform/player_waveform.dart';
 import 'sources/local_source.dart';
 import 'sources/smb_source.dart';
 
@@ -326,6 +327,7 @@ class PlayerBar extends StatelessWidget {
               '原文件 · 设备输出规格未知',
               style: TextStyle(fontSize: 12, color: Colors.white54),
             ),
+            PlayerWaveform(controller: c),
             SeekBar(controller: c),
             VolumeControls(controller: c),
             TextButton.icon(
