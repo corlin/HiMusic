@@ -107,15 +107,23 @@ void main() {
         await ready.future.timeout(const Duration(seconds: 5));
         expect(controller.peaks.single.high, .5);
         await controller.close();
-        for (
-          var i = 0;
-          i < 50 && await root.list().any((e) => e is Directory);
-          i++
-        ) {
+        Future<bool> hasTemporaryWorkDirectory() => root.list().any(
+          (entity) =>
+              entity is Directory &&
+              !entity.path.endsWith('himusic-wave-cache-v1'),
+        );
+        for (var i = 0; i < 50 && await hasTemporaryWorkDirectory(); i++) {
           await Future<void>.delayed(const Duration(milliseconds: 10));
         }
         expect(
-          await root.list().where((e) => e is Directory).toList(),
+          await root
+              .list()
+              .where(
+                (entity) =>
+                    entity is Directory &&
+                    !entity.path.endsWith('himusic-wave-cache-v1'),
+              )
+              .toList(),
           isEmpty,
         );
       } finally {

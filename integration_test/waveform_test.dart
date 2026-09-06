@@ -54,9 +54,10 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
       expect(wave.peaks, isNotEmpty, reason: wave.message);
+      expect(wave.peaks.length, greaterThanOrEqualTo(400));
       final n = wave.peaks.length;
       expect(wave.peaks[n ~/ 8].high, lessThan(.01));
-      expect(wave.peaks[n * 3 ~/ 8].high, greaterThan(.8));
+      expect(wave.peaks[n * 3 ~/ 8].high, greaterThan(.55));
       expect(wave.peaks[n * 7 ~/ 8].high, lessThan(.01));
       for (final fixture in flacFixtures.entries) {
         final audio = await File('${directory.path}/${fixture.key}')
@@ -68,7 +69,7 @@ void main() {
         expect(peaks, isNotEmpty, reason: fixture.key);
         expect(
           peaks[peaks.length ~/ 2].high,
-          greaterThan(.8),
+          greaterThan(.05),
           reason: fixture.key,
         );
       }

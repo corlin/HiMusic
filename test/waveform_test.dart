@@ -30,8 +30,9 @@ void main() {
       final peaks = parseWaveform(bytes, bins: 2);
       expect(peaks.first.low, 0);
       expect(peaks.first.high, 0);
-      expect(peaks.last.low, -1);
-      expect(peaks.last.high, 1);
+      final divisor = bits == 8 ? 128 : 32768;
+      expect(peaks.last.low, closeTo(-100 / divisor, .000001));
+      expect(peaks.last.high, closeTo(100 / divisor, .000001));
       expect(
         () => parseWaveform(bytes.sublist(0, bytes.length - 1)),
         throwsFormatException,
@@ -47,9 +48,10 @@ void main() {
             child: SizedBox(
               width: 400,
               child: WaveformView(
-                peaks: const [WavePeak(-1, 1)],
-                position: Duration.zero,
+                peaks: List.filled(12000, const WavePeak(-1, 1)),
+                position: const Duration(seconds: 50),
                 duration: const Duration(seconds: 100),
+                window: const Duration(seconds: 20),
                 onSeek: (value) => target = value,
               ),
             ),
@@ -58,7 +60,22 @@ void main() {
       ),
     );
     final rect = tester.getRect(find.byType(WaveformView));
-    await tester.tapAt(Offset(rect.left + rect.width * .75, rect.center.dy));
+    await tester.tapAt(Offset(rect.left + rect.width * .75, rect.top + 30));
+    expect(target, const Duration(seconds: 55));
+    await tester.tapAt(Offset(rect.left + rect.width * .75, rect.bottom - 8));
     expect(target, const Duration(seconds: 75));
+  });
+
+  test('multi-resolution query stays bounded and preserves extrema', () {
+    final peaks = List.generate(
+      1 << 18,
+      (index) =>
+          index == 131072 ? const WavePeak(-1, 1) : const WavePeak(-.1, .1),
+    );
+    final pyramid = WaveformPyramid(peaks);
+    final slice = pyramid.query(0, peaks.length, targetPoints: 900);
+    expect(slice.peaks.length, lessThanOrEqualTo(1800));
+    expect(slice.sourceSamplesVisited, lessThanOrEqualTo(1800));
+    expect(slice.peaks.any((peak) => peak.high == 1), isTrue);
   });
 }

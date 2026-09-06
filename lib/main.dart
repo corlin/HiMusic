@@ -305,8 +305,6 @@ class _LibraryPageState extends State<LibraryPage> {
 class PlayerBar extends StatelessWidget {
   const PlayerBar({super.key, required this.controller});
   final PlayerController controller;
-  String time(Duration d) =>
-      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
   @override
   Widget build(BuildContext context) {
     final c = controller;
@@ -328,19 +326,18 @@ class PlayerBar extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: Colors.white54),
             ),
             PlayerWaveform(controller: c),
-            SeekBar(controller: c),
             VolumeControls(controller: c),
-            TextButton.icon(
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (_) => const OutputDeviceDialog(),
-              ),
-              icon: const Icon(Icons.speaker_group_outlined),
-              label: const Text('音频输出设备'),
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                IconButton(
+                  tooltip: '音频输出设备',
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const OutputDeviceDialog(),
+                  ),
+                  icon: const Icon(Icons.speaker_group_outlined),
+                ),
                 IconButton(
                   tooltip: '上一首',
                   onPressed: c.busy || !c.player.hasPrevious
@@ -465,62 +462,4 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
       ),
     ],
   );
-}
-
-class SeekBar extends StatefulWidget {
-  const SeekBar({super.key, required this.controller});
-  final PlayerController controller;
-  @override
-  State<SeekBar> createState() => _SeekBarState();
-}
-
-class _SeekBarState extends State<SeekBar> {
-  double? pending;
-  String time(Duration d) =>
-      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.controller;
-    return StreamBuilder<Duration?>(
-      stream: c.player.durationStream,
-      builder: (context, duration) => StreamBuilder<Duration>(
-        stream: c.player.positionStream,
-        builder: (context, position) {
-          final total = duration.data ?? Duration.zero;
-          final current = position.data ?? Duration.zero;
-          final max = total.inMilliseconds > 0
-              ? total.inMilliseconds.toDouble()
-              : 1.0;
-          return Row(
-            children: [
-              Text(
-                time(
-                  pending == null
-                      ? current
-                      : Duration(milliseconds: pending!.round()),
-                ),
-              ),
-              Expanded(
-                child: Slider(
-                  value: (pending ?? current.inMilliseconds.toDouble()).clamp(
-                    0,
-                    max,
-                  ),
-                  max: max,
-                  onChanged: c.busy || total == Duration.zero
-                      ? null
-                      : (v) => setState(() => pending = v),
-                  onChangeEnd: (v) async {
-                    await c.seek(Duration(milliseconds: v.round()));
-                    if (mounted) setState(() => pending = null);
-                  },
-                ),
-              ),
-              Text(time(total)),
-            ],
-          );
-        },
-      ),
-    );
-  }
 }

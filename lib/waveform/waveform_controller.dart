@@ -7,6 +7,7 @@ import 'package:just_waveform/just_waveform.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../sources/music_source.dart';
+import 'waveform_cache.dart';
 import 'waveform_data.dart';
 
 typedef WaveExtractor = Future<List<WavePeak>> Function(
@@ -18,10 +19,10 @@ Future<List<WavePeak>> extractWaveform(File audio, File output) async {
   await for (final progress in JustWaveform.extract(
     audioInFile: audio,
     waveOutFile: output,
-    zoom: const WaveformZoom.pixelsPerSecond(20),
+    zoom: const WaveformZoom.pixelsPerSecond(512),
   )) {
     if (progress.progress >= 1) {
-      return parseWaveform(await output.readAsBytes());
+      return parseWaveform(await output.readAsBytes(), bins: 180000);
     }
   }
   throw const FormatException('No waveform data');
@@ -49,7 +50,8 @@ class WaveformController extends ChangeNotifier {
   double? progress;
   int _generation = 0;
   bool _closed = false;
-  ({MusicSource source, MusicEntry entry, int generation})? _pending;
+  ({MusicSource source, MusicEntry entry, int generation, String key})?
+  _pending;
   Future<void>? _worker;
   Future<dynamic>? _read;
   MusicSource? _source;
@@ -65,7 +67,7 @@ class WaveformController extends ChangeNotifier {
   void show(MusicSource source, MusicEntry entry) {
     if (_closed) return;
     final key =
-        '${entry.path}\u0000${entry.size}\u0000${entry.modified?.microsecondsSinceEpoch}';
+        '${source.label}\u0000${entry.path}\u0000${entry.size}\u0000${entry.modified?.microsecondsSinceEpoch}';
     if (identical(source, _source) && key == _key) return;
     if (!identical(source, _source)) _cache.clear();
     _source = source;
@@ -93,7 +95,12 @@ class WaveformController extends ChangeNotifier {
     }
     message = '准备音频波形…';
     progress = 0;
-    _pending = (source: source, entry: entry, generation: _generation);
+    _pending = (
+      source: source,
+      entry: entry,
+      generation: _generation,
+      key: key,
+    );
     _emit();
     _worker ??= _drain();
   }
@@ -109,6 +116,22 @@ class WaveformController extends ChangeNotifier {
           if (!_active(job.generation)) continue;
           await root.create(recursive: true);
           if (!_active(job.generation)) continue;
+          WaveformCache? diskCache;
+          if (job.entry.modified != null) {
+            diskCache = WaveformCache(
+              Directory('${root.path}/himusic-wave-cache-v1'),
+            );
+            final stored = await diskCache.load(job.key);
+            if (!_active(job.generation)) continue;
+            if (stored != null) {
+              peaks = stored;
+              message = null;
+              progress = null;
+              _cache[job.key] = stored;
+              _emit();
+              continue;
+            }
+          }
           work = await root.createTemp('himusic-wave-');
           final audio = File('${work.path}/audio.${job.entry.extension}');
           final handle = await audio.open(mode: FileMode.write);
@@ -154,9 +177,14 @@ class WaveformController extends ChangeNotifier {
           message = null;
           if (job.entry.modified != null) {
             if (_cache.length >= 8) _cache.remove(_cache.keys.first);
-            _cache[_key!] = result;
+            _cache[job.key] = result;
           }
           _emit();
+          if (diskCache != null) {
+            try {
+              await diskCache.store(job.key, result);
+            } on FileSystemException catch (_) {}
+          }
         } catch (_) {
           if (_active(job.generation)) {
             message = '暂时无法生成波形，音乐仍可正常播放';

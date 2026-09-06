@@ -54,16 +54,38 @@ void main() {
           DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 100));
       }
+      await tester.pump();
 
       expect(
         controller.waveform.peaks,
         isNotEmpty,
         reason: controller.waveform.message,
       );
+      if (!ownsDirectory) {
+        expect(controller.waveform.peaks.length, greaterThan(10000));
+      }
       expect(find.byType(WaveformView), findsOneWidget);
-      expect(tester.getSize(find.byType(WaveformView)).height, 64);
+      expect(tester.getSize(find.byType(WaveformView)).height, 126);
+      expect(find.text('15 秒'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('waveform-zoom-in')));
+      await tester.pump();
+      expect(find.text('5 秒'), findsOneWidget);
+      expect(
+        tester.widget<WaveformView>(find.byType(WaveformView)).window,
+        const Duration(seconds: 5),
+      );
+      final before = tester
+          .widget<WaveformView>(find.byType(WaveformView))
+          .position;
+      await tester.pump(const Duration(milliseconds: 120));
+      final after = tester
+          .widget<WaveformView>(find.byType(WaveformView))
+          .position;
+      expect(after, greaterThan(before));
       expect(tester.takeException(), isNull);
     } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
       await controller.shutdown();
       if (ownsDirectory) await directory.delete(recursive: true);
     }

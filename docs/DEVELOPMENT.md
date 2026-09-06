@@ -89,3 +89,14 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - 使用 `/Users/corlin/Desktop/music` 中的真实 FLAC，经测试容器授权副本验证：原生峰值提取成功，播放栏显示 64 px 波形。
 - 13 项单元/组件测试、macOS 波形界面测试及三类 FLAC 播放回归通过；macOS Release 与 Android Debug 构建通过。
 - 修复版产物为 `HiMusic-0.1.3-macos.zip` 与 `HiMusic-0.1.3-android-debug.apk`。
+
+## 0.2.0 动态高解析波形（2026-09-06）
+
+- 参考 BBC audiowaveform / Peaks.js、wavesurfer.js、Audacity 与 Flutter 渲染边界，研究记录见 `docs/research/dynamic-waveform.md`。
+- 基础解析度由 20 pps 且固定压缩 256 点，提升为 512 pps、最多 180,000 点；约覆盖普通六分钟歌曲的完整基础解析度。
+- 新增 2 倍 min/max 峰值金字塔。最大内存波形的视口查询每帧最多访问一屏目标点数，不扫描整曲；查询返回只读视图，避免每帧复制峰值列表。
+- 新增自动跟随的细节波形、整曲概览、视口框、时间网格、渐变真实振幅、已播放着色与 5/15/30/60 秒缩放。
+- 使用 Ticker 在播放器 ready 且 playing 时逐帧读取校准位置；暂停、缓冲或结束时停止，避免无效刷新。
+- 新增版本化峰值磁盘缓存，使用临时文件加 rename 原子提交，按来源、路径、大小与修改时间失效，总量限制 256 MiB 并按最近使用淘汰。
+- 16 项单元/组件测试通过；三种 FLAC 原生播放/提取、真实 FLAC 首次生成与缓存命中、5 秒缩放和逐帧位置推进通过。
+- macOS Release 实际窗口检查通过：细节波形、概览视口、时间、音量和播放控制在默认窗口内完整显示；删除重复进度条并将输出设备入口并入控制行。
