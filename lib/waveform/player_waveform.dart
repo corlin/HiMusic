@@ -10,8 +10,13 @@ import 'waveform_data.dart';
 import 'waveform_view.dart';
 
 class PlayerWaveform extends StatefulWidget {
-  const PlayerWaveform({super.key, required this.controller});
+  const PlayerWaveform({
+    super.key,
+    required this.controller,
+    this.compact = false,
+  });
   final PlayerController controller;
+  final bool compact;
 
   @override
   State<PlayerWaveform> createState() => _PlayerWaveformState();
@@ -28,7 +33,7 @@ class _PlayerWaveformState extends State<PlayerWaveform> {
       final wave = widget.controller.waveform;
       if (wave.peaks.isEmpty) {
         return SizedBox(
-          height: 126,
+          height: widget.compact ? 92 : 126,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -99,6 +104,7 @@ class _PlayerWaveformState extends State<PlayerWaveform> {
               window: windows[zoomIndex] == 0
                   ? duration.data ?? Duration.zero
                   : Duration(seconds: windows[zoomIndex]),
+              compact: widget.compact,
             ),
           ),
         ],
@@ -151,12 +157,14 @@ class _SmoothWaveform extends StatefulWidget {
     required this.peaks,
     required this.duration,
     required this.window,
+    required this.compact,
   });
 
   final PlayerController controller;
   final List<WavePeak> peaks;
   final Duration duration;
   final Duration window;
+  final bool compact;
 
   @override
   State<_SmoothWaveform> createState() => _SmoothWaveformState();
@@ -214,6 +222,7 @@ class _SmoothWaveformState extends State<_SmoothWaveform>
         window: widget.window,
         enabled: !widget.controller.busy,
         onSeek: widget.controller.seek,
+        compact: widget.compact,
       ),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

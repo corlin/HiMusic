@@ -54,6 +54,7 @@ class WaveformController extends ChangeNotifier {
   _pending;
   Future<void>? _worker;
   Future<dynamic>? _read;
+  bool _extracting = false;
   MusicSource? _source;
   String? _key;
   final Map<String, List<WavePeak>> _cache = {};
@@ -171,7 +172,13 @@ class WaveformController extends ChangeNotifier {
           _emit();
           // Native extraction has no cancellation API. Keep only one decode in
           // flight and discard stale results before processing the latest track.
-          final result = await _extract(audio, File('${work.path}/audio.wave'));
+          _extracting = true;
+          late final List<WavePeak> result;
+          try {
+            result = await _extract(audio, File('${work.path}/audio.wave'));
+          } finally {
+            _extracting = false;
+          }
           if (!_active(job.generation)) continue;
           peaks = result;
           message = null;
@@ -223,6 +230,11 @@ class WaveformController extends ChangeNotifier {
   Future<void> close() async {
     _closed = true;
     await reset();
+    if (!_extracting) {
+      try {
+        await _worker;
+      } catch (_) {}
+    }
     // Native extraction owns its temporary files until it finishes.
     // It must not hold up playback or source teardown.
     super.dispose();

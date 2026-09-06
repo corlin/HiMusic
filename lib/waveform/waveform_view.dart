@@ -14,6 +14,7 @@ class WaveformView extends StatefulWidget {
     required this.window,
     required this.onSeek,
     this.enabled = true,
+    this.compact = false,
   });
 
   final List<WavePeak> peaks;
@@ -22,14 +23,15 @@ class WaveformView extends StatefulWidget {
   final Duration window;
   final ValueChanged<Duration> onSeek;
   final bool enabled;
+  final bool compact;
 
   @override
   State<WaveformView> createState() => _WaveformViewState();
 }
 
 class _WaveformViewState extends State<WaveformView> {
-  static const overviewTop = 96.0;
-  static const totalHeight = 126.0;
+  double get overviewTop => widget.compact ? 56 : 96;
+  double get totalHeight => widget.compact ? 68 : 126;
 
   late WaveformPyramid pyramid;
   late WaveformRenderCache renderCache;
@@ -148,7 +150,7 @@ class _WaveformViewState extends State<WaveformView> {
           onHorizontalDragCancel: () => setState(() => dragging = null),
           child: RepaintBoundary(
             child: CustomPaint(
-              size: const Size(double.infinity, totalHeight),
+              size: Size(double.infinity, totalHeight),
               painter: DynamicWaveformPainter(
                 pyramid: pyramid,
                 renderCache: renderCache,
@@ -160,6 +162,7 @@ class _WaveformViewState extends State<WaveformView> {
                 remaining: Theme.of(context).colorScheme.onSurface
                     .withValues(alpha: 0.25),
                 focused: focused,
+                compact: widget.compact,
               ),
             ),
           ),
@@ -180,6 +183,7 @@ class DynamicWaveformPainter extends CustomPainter {
     required this.played,
     required this.remaining,
     required this.focused,
+    required this.compact,
   });
 
   final WaveformPyramid pyramid;
@@ -191,6 +195,7 @@ class DynamicWaveformPainter extends CustomPainter {
   final Color played;
   final Color remaining;
   final bool focused;
+  final bool compact;
 
   double fraction(Duration value) => duration.inMicroseconds <= 0
       ? 0
@@ -201,8 +206,13 @@ class DynamicWaveformPainter extends CustomPainter {
     if (pyramid.length == 0 || size.width < 1 || duration <= Duration.zero) {
       return;
     }
-    final detail = Rect.fromLTWH(0, 0, size.width, 88);
-    final overview = Rect.fromLTWH(0, 96, size.width, 30);
+    final detail = Rect.fromLTWH(0, 0, size.width, compact ? 50 : 88);
+    final overview = Rect.fromLTWH(
+      0,
+      compact ? 56 : 96,
+      size.width,
+      compact ? 12 : 30,
+    );
     _drawGrid(canvas, detail);
     final windowMicros = max(1, visibleWindow.inMicroseconds);
     final tileMicros = max(1, windowMicros ~/ 2);
@@ -378,7 +388,8 @@ class DynamicWaveformPainter extends CustomPainter {
       visibleWindow != old.visibleWindow ||
       played != old.played ||
       remaining != old.remaining ||
-      focused != old.focused;
+      focused != old.focused ||
+      compact != old.compact;
 }
 
 /// Retains immutable envelope paths while the playhead moves inside a tile.
