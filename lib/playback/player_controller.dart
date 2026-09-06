@@ -17,6 +17,11 @@ class PlayerController extends ChangeNotifier {
   String? error;
   bool busy = false;
   bool _disposed = false;
+  bool _wantsPlayback = false;
+  Future<void> Function()? _retryAction;
+  Completer<void>? _operation;
+  Future<void>? _shutdownFuture;
+  List<AudioSource> _audioSources = [];
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
   PlayerController() {
@@ -25,6 +30,7 @@ class PlayerController extends ChangeNotifier {
     _subscriptions.add(
       player.errorStream.listen((_) {
         error = '播放中断，请检查网络或文件格式，然后按重试。';
+        _retryAction = _reloadPlayback;
         _changed();
       }),
     );
@@ -39,15 +45,19 @@ class PlayerController extends ChangeNotifier {
   }
 
   Future<void> run(Future<void> Function() action) async {
-    if (busy) return;
+    if (busy || _disposed) return;
+    _operation = Completer<void>();
     busy = true;
     error = null;
+    _retryAction = null;
     _changed();
     try {
       await action();
     } catch (e) {
       error = sourceError(e);
+      _retryAction = action;
     } finally {
+      _operation?.complete();
       busy = false;
       _changed();
     }
@@ -56,21 +66,25 @@ class PlayerController extends ChangeNotifier {
   Future<void> connect(Future<MusicSource> Function() factory, String root) =>
       run(() async {
         final next = await factory();
-        late List<MusicEntry> files;
+        var committed = false;
         try {
-          files = await next.list(safePath(root));
-        } catch (_) {
-          await next.close();
-          rethrow;
+          final path = safePath(root);
+          final files = await next.list(path);
+          if (_disposed) return;
+          _wantsPlayback = false;
+          await player.stop();
+          await _bridge?.close();
+          _bridge = null;
+          await source?.close();
+          source = next;
+          committed = true;
+          directory = path;
+          entries = files;
+          queue = [];
+          _audioSources = [];
+        } finally {
+          if (!committed) await next.close();
         }
-        await player.stop();
-        await _bridge?.close();
-        _bridge = null;
-        await source?.close();
-        source = next;
-        directory = safePath(root);
-        entries = files;
-        queue = [];
       });
 
   Future<void> browse(String path) => run(() async {
@@ -89,23 +103,30 @@ class PlayerController extends ChangeNotifier {
     await _bridge?.close();
     _bridge = await AudioBridge.start(source!);
     queue = entries.where((e) => e.isAudio).toList();
+    _audioSources = queue
+        .map((e) => AudioSource.uri(_bridge!.register(e)))
+        .toList();
     await player.setAudioSources(
-      queue.map((e) => AudioSource.uri(_bridge!.register(e))).toList(),
+      _audioSources,
       initialIndex: queue.indexOf(entry),
     );
     unawaited(_play());
   });
   Future<void> _play() async {
+    if (_disposed) return;
+    _wantsPlayback = true;
     try {
       await player.play();
     } catch (_) {
       error = '无法播放，请检查网络或音频格式，然后重试。';
+      _retryAction = _reloadPlayback;
       _changed();
     }
   }
 
   Future<void> toggle() => run(() async {
     if (player.playing) {
+      _wantsPlayback = false;
       await player.pause();
     } else {
       if (player.processingState == ProcessingState.completed) {
@@ -114,21 +135,25 @@ class PlayerController extends ChangeNotifier {
       unawaited(_play());
     }
   });
-  Future<void> retry() => run(() async {
-    if (queue.isEmpty) {
-      if (source != null) entries = await source!.list(directory);
-      return;
-    }
+  Future<void> retry() async {
+    final action = _retryAction;
+    if (action != null) await run(action);
+  }
+
+  Future<void> _reloadPlayback() async {
+    if (_audioSources.isEmpty) return;
+    final resume = _wantsPlayback;
     final index = player.currentIndex ?? 0;
     final position = player.position;
     await player.stop();
     await player.setAudioSources(
-      queue.map((e) => AudioSource.uri(_bridge!.register(e))).toList(),
+      _audioSources,
       initialIndex: index,
       initialPosition: position,
     );
-    unawaited(_play());
-  });
+    if (resume) unawaited(_play());
+  }
+
   Future<void> skip(bool next) => run(() async {
     if (next && player.hasNext) await player.seekToNext();
     if (!next && player.hasPrevious) await player.seekToPrevious();
@@ -142,8 +167,12 @@ class PlayerController extends ChangeNotifier {
     }),
   );
 
-  Future<void> shutdown() async {
+  Future<void> shutdown() => _shutdownFuture ??= _shutdown();
+
+  Future<void> _shutdown() async {
     _disposed = true;
+    _retryAction = null;
+    if (busy) await _operation?.future;
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

@@ -4,6 +4,21 @@ import 'package:dart_smb2/dart_smb2.dart';
 
 import 'music_source.dart';
 
+class SmbConnectionRequest {
+  const SmbConnectionRequest({
+    required this.host,
+    required this.share,
+    required this.directory,
+    required this.user,
+    required this.password,
+  });
+  final String host;
+  final String share;
+  final String directory;
+  final String user;
+  final String password;
+}
+
 class SmbSource implements MusicSource {
   SmbSource._(this._pool, this.label);
   final Smb2Pool _pool;

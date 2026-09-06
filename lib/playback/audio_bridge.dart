@@ -42,7 +42,6 @@ class AudioBridge {
   bool _closed = false;
   int _active = 0;
   static const chunkSize = 128 * 1024;
-  final Set<HttpResponse> _responses = {};
 
   static Future<AudioBridge> start(MusicSource source) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -69,7 +68,6 @@ class AudioBridge {
 
   Future<void> _serve(HttpRequest request) async {
     final response = request.response;
-    _responses.add(response);
     var counted = false;
     try {
       final entry = _files[request.uri.path];
@@ -146,7 +144,6 @@ class AudioBridge {
       } catch (_) {}
     } finally {
       if (counted) _active--;
-      _responses.remove(response);
       try {
         await response.close();
       } catch (_) {}

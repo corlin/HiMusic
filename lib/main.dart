@@ -50,19 +50,19 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> addSmb() async {
-    final values = await showDialog<List<String>>(
+    final values = await showDialog<SmbConnectionRequest>(
       context: context,
       builder: (_) => const ConnectionDialog(),
     );
     if (values == null || !mounted) return;
     await controller.connect(
       () => SmbSource.connect(
-        host: values[0],
-        share: values[1],
-        user: values[3],
-        password: values[4],
+        host: values.host,
+        share: values.share,
+        user: values.user,
+        password: values.password,
       ),
-      values[2],
+      values.directory,
     );
   }
 
@@ -294,37 +294,7 @@ class PlayerBar extends StatelessWidget {
               '原文件 · 设备输出规格未知',
               style: TextStyle(fontSize: 12, color: Colors.white54),
             ),
-            StreamBuilder<Duration?>(
-              stream: c.player.durationStream,
-              builder: (context, duration) => StreamBuilder<Duration>(
-                stream: c.player.positionStream,
-                builder: (context, position) {
-                  final total = duration.data ?? Duration.zero;
-                  final current = position.data ?? Duration.zero;
-                  return Row(
-                    children: [
-                      Text(time(current)),
-                      Expanded(
-                        child: Slider(
-                          value: current.inMilliseconds.toDouble().clamp(
-                            0,
-                            total.inMilliseconds.toDouble(),
-                          ),
-                          max: total.inMilliseconds > 0
-                              ? total.inMilliseconds.toDouble()
-                              : 1,
-                          onChanged: c.busy || total == Duration.zero
-                              ? null
-                              : (v) =>
-                                    c.seek(Duration(milliseconds: v.round())),
-                        ),
-                      ),
-                      Text(time(total)),
-                    ],
-                  );
-                },
-              ),
-            ),
+            SeekBar(controller: c),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -436,11 +406,78 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
       FilledButton(
         onPressed: () {
           if (form.currentState!.validate()) {
-            Navigator.pop(context, fields.map((f) => f.text).toList());
+            Navigator.pop(
+              context,
+              SmbConnectionRequest(
+                host: fields[0].text,
+                share: fields[1].text,
+                directory: fields[2].text,
+                user: fields[3].text,
+                password: fields[4].text,
+              ),
+            );
           }
         },
         child: const Text('连接'),
       ),
     ],
   );
+}
+
+class SeekBar extends StatefulWidget {
+  const SeekBar({super.key, required this.controller});
+  final PlayerController controller;
+  @override
+  State<SeekBar> createState() => _SeekBarState();
+}
+
+class _SeekBarState extends State<SeekBar> {
+  double? pending;
+  String time(Duration d) =>
+      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    return StreamBuilder<Duration?>(
+      stream: c.player.durationStream,
+      builder: (context, duration) => StreamBuilder<Duration>(
+        stream: c.player.positionStream,
+        builder: (context, position) {
+          final total = duration.data ?? Duration.zero;
+          final current = position.data ?? Duration.zero;
+          final max = total.inMilliseconds > 0
+              ? total.inMilliseconds.toDouble()
+              : 1.0;
+          return Row(
+            children: [
+              Text(
+                time(
+                  pending == null
+                      ? current
+                      : Duration(milliseconds: pending!.round()),
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  value: (pending ?? current.inMilliseconds.toDouble()).clamp(
+                    0,
+                    max,
+                  ),
+                  max: max,
+                  onChanged: c.busy || total == Duration.zero
+                      ? null
+                      : (v) => setState(() => pending = v),
+                  onChangeEnd: (v) async {
+                    await c.seek(Duration(milliseconds: v.round()));
+                    if (mounted) setState(() => pending = null);
+                  },
+                ),
+              ),
+              Text(time(total)),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
