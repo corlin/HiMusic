@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../metadata/metadata_index.dart';
 import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
 import 'audio_bridge.dart';
@@ -10,6 +11,7 @@ import '../waveform/waveform_controller.dart';
 
 class PlayerController extends ChangeNotifier {
   final AudioPlayer player = AudioPlayer();
+  final MetadataIndex metadata;
   late final WaveformController waveform = WaveformController(
     playbackReady: () =>
         player.processingState != ProcessingState.loading &&
@@ -41,7 +43,9 @@ class PlayerController extends ChangeNotifier {
   List<AudioSource> _audioSources = [];
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
-  PlayerController() {
+  PlayerController({MetadataIndex? metadataIndex})
+    : metadata = metadataIndex ?? MetadataIndex() {
+    metadata.addListener(_changed);
     _subscriptions.add(player.volumeStream.listen((_) => _changed()));
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
     _subscriptions.add(
@@ -99,6 +103,7 @@ class PlayerController extends ChangeNotifier {
           await _bridge?.close();
           _bridge = null;
           await waveform.reset();
+          metadata.cancel();
           await source?.close();
           source = next;
           committed = true;
@@ -106,6 +111,7 @@ class PlayerController extends ChangeNotifier {
           entries = files;
           queue = [];
           _audioSources = [];
+          unawaited(metadata.scan(next, files));
         } finally {
           if (!committed) await next.close();
         }
@@ -115,6 +121,7 @@ class PlayerController extends ChangeNotifier {
     final files = await source!.list(safePath(path));
     directory = safePath(path);
     entries = files;
+    unawaited(metadata.scan(source!, files));
   });
   Future<void> up() => browse(
     directory.contains('/')
@@ -231,6 +238,9 @@ class PlayerController extends ChangeNotifier {
     await _volumeWork;
     await player.dispose();
     await waveform.close();
+    metadata.cancel();
+    metadata.removeListener(_changed);
+    metadata.dispose();
     await _bridge?.close();
     await source?.close();
   }

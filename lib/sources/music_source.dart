@@ -16,6 +16,8 @@ class MusicEntry {
   String get extension => name.split('.').last.toLowerCase();
   bool get isAudio =>
       !isDirectory &&
+      !name.startsWith('.') &&
+      size > 0 &&
       const {'flac', 'mp3', 'm4a', 'aac', 'wav', 'alac'}.contains(extension);
   String get mimeType => switch (extension) {
     'flac' => 'audio/flac',

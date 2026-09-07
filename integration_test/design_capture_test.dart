@@ -44,7 +44,8 @@ void main() {
       );
       await controller.playEntry(controller.entries.first);
       final deadline = DateTime.now().add(const Duration(seconds: 30));
-      while (controller.waveform.peaks.isEmpty &&
+      while ((controller.waveform.peaks.isEmpty ||
+              controller.metadata.isScanning) &&
           DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 100));
       }

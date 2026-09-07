@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import '../sources/music_source.dart';
 
@@ -40,7 +41,7 @@ class AudioBridge {
   final Map<String, MusicEntry> _files = {};
   final _random = Random.secure();
   bool _closed = false;
-  int _active = 0;
+  Future<void> _reads = Future<void>.value();
   static const chunkSize = 128 * 1024;
 
   static Future<AudioBridge> start(MusicSource source) async {
@@ -68,7 +69,6 @@ class AudioBridge {
 
   Future<void> _serve(HttpRequest request) async {
     final response = request.response;
-    var counted = false;
     try {
       final entry = _files[request.uri.path];
       if (_closed || entry == null) {
@@ -80,12 +80,6 @@ class AudioBridge {
         response.headers.set('Allow', 'GET, HEAD');
         return;
       }
-      if (_active >= 4) {
-        response.statusCode = 503;
-        return;
-      }
-      _active++;
-      counted = true;
       response.headers.set('Accept-Ranges', 'bytes');
       response.headers.set('Cache-Control', 'no-store');
       response.headers.set('Content-Type', entry.mimeType);
@@ -125,9 +119,17 @@ class AudioBridge {
         offset < range.end && !_closed && !disconnected;
       ) {
         final length = min(chunkSize, range.end - offset);
-        final data = await _source
-            .read(entry.path, offset, length)
-            .timeout(const Duration(seconds: 25));
+        // Limit source I/O, not long-lived HTTP consumers. AVPlayer may keep
+        // read-ahead responses open while issuing new playback/seek requests.
+        // Socket backpressure must never hold the source read queue.
+        final read = _reads.then<Uint8List>((_) {
+          if (_closed || disconnected) return Uint8List(0);
+          return _source.read(entry.path, offset, length);
+        });
+        // Keep the queue occupied until the actual I/O settles, even if the
+        // caller times out. A failed read must not poison later requests.
+        _reads = read.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+        final data = await read.timeout(const Duration(seconds: 25));
         if (_closed || disconnected) break;
         if (data.isEmpty || data.length > length) {
           throw const FileSystemException('Unexpected read size');
@@ -143,7 +145,6 @@ class AudioBridge {
         socket.destroy();
       } catch (_) {}
     } finally {
-      if (counted) _active--;
       try {
         await response.close();
       } catch (_) {}

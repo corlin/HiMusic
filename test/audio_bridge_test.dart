@@ -34,6 +34,35 @@ void main() {
     expect(response.headers.value('content-range'), 'bytes 250-254/300000');
     expect(await response.expand((e) => e).toList(), [250, 0, 1, 2, 3]);
   });
+  test('四个未消费的预读响应不会拒绝当前曲目的新范围请求', () async {
+    final large = File('${directory.path}/large.flac');
+    final handle = await large.open(mode: FileMode.write);
+    await handle.truncate(64 * 1024 * 1024);
+    await handle.close();
+    final entry = (await source.list(''))
+        .singleWhere((e) => e.name == 'large.flac');
+    final largeUrl = bridge.register(entry);
+    final heldClients = <HttpClient>[];
+    try {
+      for (var i = 0; i < 4; i++) {
+        final held = HttpClient();
+        heldClients.add(held);
+        final response = await (await held.getUrl(largeUrl)).close();
+        expect(response.statusCode, 200);
+      }
+      final request = await client.getUrl(largeUrl);
+      request.headers.set('Range', 'bytes=34537472-34537475');
+      final response = await request.close().timeout(
+        const Duration(seconds: 5),
+      );
+      expect(response.statusCode, 206);
+      expect(await response.expand((e) => e).toList(), [0, 0, 0, 0]);
+    } finally {
+      for (final held in heldClients) {
+        held.close(force: true);
+      }
+    }
+  });
   test('尾部范围、超出长度与非法多范围按协议处理', () async {
     final request = await client.getUrl(url);
     request.headers.set('Range', 'bytes=-3');

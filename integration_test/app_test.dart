@@ -10,7 +10,7 @@ void main() {
     app.main();
     await tester.pumpAndSettle();
     expect(find.text('家里的音乐，随时听。'), findsOneWidget);
-    expect(find.text('连接 SMB 共享硬盘'), findsOneWidget);
+    expect(find.text('连接 SMB 共享硬盘'), findsWidgets);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
     expect(find.text('主机 IP 或名称'), findsOneWidget);

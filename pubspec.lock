@@ -415,6 +415,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.3"
+  metadata_audio:
+    dependency: "direct main"
+    description:
+      name: metadata_audio
+      sha256: de81c95a265a98880078c39d7bc1e048c6f73878994bc0bdc1c26e7758e25d87
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.2"
   objective_c:
     dependency: transitive
     description:
