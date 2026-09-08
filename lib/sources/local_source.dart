@@ -60,5 +60,25 @@ class LocalSource implements MusicSource {
   }
 
   @override
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  }) async {
+    final audioPath = await _resolve(entry.path);
+    final wanted = '${p.basenameWithoutExtension(audioPath)}$extension';
+    await for (final candidate in Directory(p.dirname(audioPath)).list()) {
+      if (candidate is! File ||
+          p.basename(candidate.path).toLowerCase() != wanted.toLowerCase()) {
+        continue;
+      }
+      final size = await candidate.length();
+      if (size > maxBytes) throw const FileSystemException('歌词文件过大');
+      return candidate.readAsBytes();
+    }
+    return null;
+  }
+
+  @override
   Future<void> close() async {}
 }

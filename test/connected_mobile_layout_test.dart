@@ -21,6 +21,13 @@ class _Source implements MusicSource {
   @override
   Future<Uint8List> read(String path, int offset, int length) async =>
       Uint8List(0);
+  @override
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  }) async =>
+      null;
 }
 
 class _MetadataLoader implements TrackMetadataLoader {

@@ -67,10 +67,10 @@ class _LibraryPageState extends State<LibraryPage> {
         final files = await openFiles(
           acceptedTypeGroups: const [
             XTypeGroup(
-              label: '音乐',
-              mimeTypes: ['audio/*'],
-              extensions: ['flac', 'mp3', 'm4a', 'aac', 'wav', 'alac'],
-              uniformTypeIdentifiers: ['public.audio'],
+              label: '音乐与歌词',
+              mimeTypes: ['audio/*', 'text/plain'],
+              extensions: ['flac', 'mp3', 'm4a', 'aac', 'wav', 'alac', 'lrc'],
+              uniformTypeIdentifiers: ['public.audio', 'public.text'],
             ),
           ],
         );

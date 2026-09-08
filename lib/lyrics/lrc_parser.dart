@@ -89,8 +89,12 @@ class LrcParser {
   List<String> _trimBlankEdges(List<String> lines) {
     var start = 0;
     var end = lines.length;
-    while (start < end && lines[start].trim().isEmpty) start++;
-    while (end > start && lines[end - 1].trim().isEmpty) end--;
+    while (start < end && lines[start].trim().isEmpty) {
+      start++;
+    }
+    while (end > start && lines[end - 1].trim().isEmpty) {
+      end--;
+    }
     return lines.sublist(start, end);
   }
 }

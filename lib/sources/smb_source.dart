@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dart_smb2/dart_smb2.dart';
+import 'package:path/path.dart' as p;
 
 import 'music_source.dart';
 
@@ -75,6 +77,32 @@ class SmbSource implements MusicSource {
   @override
   Future<Uint8List> read(String path, int offset, int length) =>
       _pool.readFileRange(safePath(path), offset: offset, length: length);
+  @override
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  }) async {
+    final parent = p.posix.dirname(entry.path) == '.'
+        ? ''
+        : p.posix.dirname(entry.path);
+    final wanted = '${p.basenameWithoutExtension(entry.name)}$extension';
+    final entries = await _pool.listDirectory(parent);
+    for (final candidate in entries) {
+      if (!candidate.isFile ||
+          candidate.name.toLowerCase() != wanted.toLowerCase()) {
+        continue;
+      }
+      if (candidate.size > maxBytes) {
+        throw const FileSystemException('歌词文件过大');
+      }
+      final path = safePath(
+        [parent, candidate.name].where((e) => e.isNotEmpty).join('/'),
+      );
+      return _pool.readFileRange(path, offset: 0, length: candidate.size);
+    }
+    return null;
+  }
   @override
   Future<void> close() => _pool.disconnect();
 }

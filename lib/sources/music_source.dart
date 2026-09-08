@@ -47,6 +47,11 @@ abstract interface class MusicSource {
   String get cacheNamespace;
   Future<List<MusicEntry>> list(String directory);
   Future<Uint8List> read(String path, int offset, int length);
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  });
   Future<void> close();
 }
 

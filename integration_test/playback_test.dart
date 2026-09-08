@@ -143,6 +143,13 @@ class FailingSource implements MusicSource {
   Future<Uint8List> read(String path, int offset, int length) =>
       inner.read(path, offset, length);
   @override
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  }) =>
+      inner.readSidecar(entry, extension, maxBytes: maxBytes);
+  @override
   Future<void> close() async {
     closed = true;
     await inner.close();

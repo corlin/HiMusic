@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:path/path.dart' as p;
 
 import 'music_source.dart';
 
@@ -46,6 +47,22 @@ class SelectedFilesSource implements MusicSource {
       result.add(chunk);
     }
     return result.takeBytes();
+  }
+
+  @override
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  }) async {
+    final wanted = '${p.basenameWithoutExtension(entry.name)}$extension';
+    for (final file in _files) {
+      if (file.name.toLowerCase() != wanted.toLowerCase()) continue;
+      final size = await file.length();
+      if (size > maxBytes) throw const FileSystemException('歌词文件过大');
+      return file.readAsBytes();
+    }
+    return null;
   }
 
   @override

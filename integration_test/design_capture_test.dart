@@ -89,5 +89,13 @@ class _DesignSource implements MusicSource {
       local.read(path, offset, length);
 
   @override
+  Future<Uint8List?> readSidecar(
+    MusicEntry entry,
+    String extension, {
+    required int maxBytes,
+  }) =>
+      local.readSidecar(entry, extension, maxBytes: maxBytes);
+
+  @override
   Future<void> close() => local.close();
 }
