@@ -4,6 +4,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'ui/library_page.dart';
 
 export 'ui/library_page.dart' show ConnectionDialog, LibraryPage, PlayerBar;
+export 'ui/now_playing_page.dart' show NowPlayingPage;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

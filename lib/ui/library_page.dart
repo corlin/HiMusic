@@ -13,6 +13,7 @@ import '../sources/selected_files_source.dart';
 import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
 import '../waveform/player_waveform.dart';
+import 'now_playing_page.dart';
 
 const _accent = Color(0xffb7d89c);
 const _background = Color(0xff0f1512);
@@ -1207,7 +1208,10 @@ class PlayerBar extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final horizontal = constraints.maxWidth >= 820;
-          final info = _NowPlayingInfo(controller: controller);
+          final info = _NowPlayingInfo(
+            controller: controller,
+            onTap: () => _openNowPlaying(context),
+          );
           final controls = _PlaybackControls(controller: controller);
           final waveform = PlayerWaveform(
             controller: controller,
@@ -1220,6 +1224,11 @@ class PlayerBar extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(child: info),
+                    IconButton(
+                      tooltip: '歌词',
+                      onPressed: () => _openNowPlaying(context, lyrics: true),
+                      icon: const Icon(Icons.lyrics_rounded),
+                    ),
                     controls,
                   ],
                 ),
@@ -1231,6 +1240,11 @@ class PlayerBar extends StatelessWidget {
           return Row(
             children: [
               SizedBox(width: 230, child: info),
+              IconButton(
+                tooltip: '歌词',
+                onPressed: () => _openNowPlaying(context, lyrics: true),
+                icon: const Icon(Icons.lyrics_rounded),
+              ),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
@@ -1268,39 +1282,37 @@ class PlayerBar extends StatelessWidget {
       ),
     );
   }
+
+  void _openNowPlaying(BuildContext context, {bool lyrics = false}) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            NowPlayingPage(controller: controller, showLyrics: lyrics),
+      ),
+    );
+  }
 }
 
 class _NowPlayingInfo extends StatelessWidget {
-  const _NowPlayingInfo({required this.controller});
+  const _NowPlayingInfo({required this.controller, required this.onTap});
   final PlayerController controller;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final current = controller.current!;
     final metadata = controller.metadata.metadataFor(current);
-    return Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(7),
-          child: metadata?.artwork == null
-              ? Container(
-                  width: 72,
-                  height: 72,
-                  color: _surfaceRaised,
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.album_rounded,
-                    size: 32,
-                    color: _muted,
-                  ),
-                )
-              : Image.memory(
-                  metadata!.artwork!,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, _, _) => Container(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: metadata?.artwork == null
+                ? Container(
+                    width: 72,
+                    height: 72,
                     color: _surfaceRaised,
                     alignment: Alignment.center,
                     child: const Icon(
@@ -1308,50 +1320,66 @@ class _NowPlayingInfo extends StatelessWidget {
                       size: 32,
                       color: _muted,
                     ),
+                  )
+                : Image.memory(
+                    metadata!.artwork!,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, _, _) => Container(
+                      color: _surfaceRaised,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.album_rounded,
+                        size: 32,
+                        color: _muted,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  metadata?.displayTitle(current.name) ??
+                      _cleanTitle(current.name),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                metadata?.displayTitle(current.name) ??
-                    _cleanTitle(current.name),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (metadata?.artistLine != null) ...[
+                const SizedBox(height: 4),
+                if (metadata?.artistLine != null) ...[
+                  Text(
+                    _artistAlbum(metadata),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                ],
                 Text(
-                  _artistAlbum(metadata),
+                  '${current.extension.toUpperCase()} · 原文件',
+                  style: const TextStyle(color: _accent, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  controller.source?.label ?? '本地音乐',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: _muted, fontSize: 12),
                 ),
-                const SizedBox(height: 4),
               ],
-              Text(
-                '${current.extension.toUpperCase()} · 原文件',
-                style: const TextStyle(color: _accent, fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                controller.source?.label ?? '本地音乐',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: _muted, fontSize: 12),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
