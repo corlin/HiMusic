@@ -47,7 +47,7 @@ There is no central playback session: one person can listen on a computer while 
 
 ## Current product boundaries
 
-HiMusic 0.3.0 is a working prototype rather than a store-ready release. The current folder progressively loads track titles, performers, albums, credits, audio specifications, and embedded artwork. Cross-folder artist and album collections, persistent favorites and playlists, mobile background controls, account sync, offline downloads, and phone-to-TV control are still on the roadmap. Real-router concurrency, TV remote navigation, sleep recovery, and device-specific high-resolution output also need hardware testing.
+HiMusic 0.3.1 is a working prototype rather than a store-ready release. The current folder progressively loads track titles, performers, albums, credits, audio specifications, and embedded artwork. Cross-folder artist and album collections, persistent favorites and playlists, mobile background controls, account sync, offline downloads, and phone-to-TV control are still on the roadmap. Real-router concurrency, TV remote navigation, sleep recovery, and device-specific high-resolution output also need hardware testing.
 
 HiMusic reads original FLAC data, but this alone does not guarantee bit-perfect output; the operating system and playback device still control the final audio path.
 
