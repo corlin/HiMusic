@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../lyrics/lyrics_controller.dart';
+import '../lyrics/lyrics_document.dart';
 import '../metadata/metadata_index.dart';
 import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
@@ -12,6 +14,7 @@ import '../waveform/waveform_controller.dart';
 class PlayerController extends ChangeNotifier {
   final AudioPlayer player = AudioPlayer();
   final MetadataIndex metadata;
+  final LyricsController lyrics;
   late final WaveformController waveform = WaveformController(
     playbackReady: () =>
         player.processingState != ProcessingState.loading &&
@@ -43,17 +46,23 @@ class PlayerController extends ChangeNotifier {
   List<AudioSource> _audioSources = [];
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
-  PlayerController({MetadataIndex? metadataIndex})
-    : metadata = metadataIndex ?? MetadataIndex() {
+  PlayerController({
+    MetadataIndex? metadataIndex,
+    LyricsController? lyricsController,
+  }) : metadata = metadataIndex ?? MetadataIndex(),
+       lyrics = lyricsController ?? LyricsController() {
     metadata.addListener(_changed);
+    lyrics.addListener(_changed);
     _subscriptions.add(player.volumeStream.listen((_) => _changed()));
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
     _subscriptions.add(
       player.currentIndexStream.listen((_) {
         _syncWaveform();
+        _syncLyrics();
         _changed();
       }),
     );
+    _subscriptions.add(player.positionStream.listen(lyrics.updatePosition));
     _subscriptions.add(
       player.errorStream.listen((_) {
         error = '播放中断，请检查网络或文件格式，然后按重试。';
@@ -69,6 +78,16 @@ class PlayerController extends ChangeNotifier {
 
   void _changed() {
     if (!_disposed) notifyListeners();
+  }
+
+  void _syncLyrics() {
+    final entry = current;
+    final origin = source;
+    if (entry == null || origin == null) {
+      lyrics.clear();
+    } else {
+      lyrics.load(origin, entry);
+    }
   }
 
   Future<void> run(Future<void> Function() action) async {
@@ -103,6 +122,7 @@ class PlayerController extends ChangeNotifier {
           await _bridge?.close();
           _bridge = null;
           await waveform.reset();
+          lyrics.clear();
           metadata.cancel();
           await source?.close();
           source = next;
@@ -142,6 +162,7 @@ class PlayerController extends ChangeNotifier {
       initialIndex: queue.indexOf(entry),
     );
     _syncWaveform();
+    _syncLyrics();
     unawaited(_play());
   });
   Future<void> _play() async {
@@ -191,6 +212,7 @@ class PlayerController extends ChangeNotifier {
     if (!next && player.hasPrevious) await player.seekToPrevious();
   });
   Future<void> seek(Duration position) => run(() => player.seek(position));
+  Future<void> seekToLyric(TimedLyricLine line) => seek(line.timestamp);
   Future<void> cycleLoop() => run(
     () => player.setLoopMode(switch (player.loopMode) {
       LoopMode.off => LoopMode.all,
@@ -238,6 +260,8 @@ class PlayerController extends ChangeNotifier {
     await _volumeWork;
     await player.dispose();
     await waveform.close();
+    lyrics.removeListener(_changed);
+    lyrics.dispose();
     metadata.cancel();
     metadata.removeListener(_changed);
     metadata.dispose();

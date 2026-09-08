@@ -5,7 +5,11 @@ import 'embedded_lyrics_reader.dart';
 import 'lrc_parser.dart';
 import 'lyrics_document.dart';
 
-class LyricsRepository {
+abstract interface class LyricsLoader {
+  Future<LyricsDocument?> load(MusicSource source, MusicEntry entry);
+}
+
+class LyricsRepository implements LyricsLoader {
   LyricsRepository({
     EmbeddedLyricsLoader? embeddedReader,
     LrcParser? parser,
@@ -19,6 +23,7 @@ class LyricsRepository {
   final int maxEntries;
   final LinkedHashMap<String, LyricsDocument?> _cache = LinkedHashMap();
 
+  @override
   Future<LyricsDocument?> load(MusicSource source, MusicEntry entry) async {
     final key = _key(source, entry);
     if (_cache.containsKey(key)) {
