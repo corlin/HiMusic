@@ -109,3 +109,14 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - 六张资料库封面与独立的正在播放封面均为项目内置位图资源，避免网络依赖和占位图。
 - 波形播放器增加紧凑显示模式，将细节与概览压缩到 68 px，同时保留双层波形、视口框、时间刻度、点击和拖动跳转。
 - 设计验收以 1440×1024 的选定视觉稿和同尺寸 macOS 实现截图并排对照，结果记录于 `design-qa.md`。
+
+## 0.4.0 本地歌词（2026-09-08）
+
+- 支持音频内嵌同步歌词、同名 `.lrc` 和内嵌纯文本歌词，按此顺序选用；不访问在线歌词服务。
+- LRC 支持 UTF-8、UTF-8 BOM、GB18030、分钟秒时间戳、多时间标签和毫秒偏移。单个旁挂文件限制 2 MiB，解析缓存最多保留 128 首。
+- 本地目录与 SMB 只查找歌曲所在目录的同名歌词；iOS/Android 文件选择器只允许读取用户同时选中的歌词文件。歌词文件不会出现在曲目列表中。
+- 播放进度驱动当前歌词高亮；点击歌词可定位。手动滚动时暂停自动跟随，四秒后恢复，也可立即点“回到当前歌词”。
+- 小屏“正在播放”页可切换封面与歌词，宽度达到 980 px 时并排显示。
+- `flutter analyze` 无问题，完整测试 54 项通过。macOS、签名 iOS 和 Android Release 构建成功，产物分别为 `build/macos/Build/Products/Release/himusic.app`、`build/ios/iphoneos/Runner.app`、`build/app/outputs/flutter-apk/app-release.apk`。
+- 最新 iOS Release 已安装并启动于 `corlin17mx`（iPhone 17 Pro Max），进程与非白屏截图已核验，截图保存在未提交的 `build/verification/corlin17mx-lyrics-build.png`。
+- 实机当时停留在已有 SMB 输入弹窗，尚未完成设备端选择音频与 LRC 后的滚动/点击验收；真实 SMB 同名歌词读取也仍需共享盘样本。
