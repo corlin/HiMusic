@@ -212,16 +212,13 @@ class _Sidebar extends StatelessWidget {
             active: controller.source is LocalSource,
             onTap: controller.busy ? null : onLocal,
           ),
-          _SourceItem(
-            icon: Icons.router_outlined,
-            label:
-                controller.source != null && controller.source is! LocalSource
-                ? controller.source!.label
-                : 'BE7200 MAX',
-            active:
-                controller.source != null && controller.source is! LocalSource,
-            onTap: controller.busy ? null : onSmb,
-          ),
+          if (controller.source != null && controller.source is! LocalSource)
+            _SourceItem(
+              icon: Icons.router_outlined,
+              label: controller.source!.label,
+              active: true,
+              onTap: controller.busy ? null : onSmb,
+            ),
           _SourceItem(
             icon: Icons.add_link_rounded,
             label: '连接 SMB 共享硬盘',

@@ -36,6 +36,23 @@ class _MetadataLoader implements TrackMetadataLoader {
 }
 
 void main() {
+  testWidgets('未连接时不显示写死的示例路由器名称', (tester) async {
+    tester.view.physicalSize = const Size(800, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = PlayerController();
+    await tester.pumpWidget(
+      MaterialApp(home: LibraryPage(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('BE7200 MAX'), findsNothing);
+    expect(find.text('连接 SMB 共享硬盘'), findsWidgets);
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+    await tester.pump();
+  });
+
   for (final width in [360.0, 412.0, 800.0]) {
     testWidgets('已连接音乐库在 $width 宽度下无溢出且标题可读', (tester) async {
       tester.view.physicalSize = Size(width, 900);
