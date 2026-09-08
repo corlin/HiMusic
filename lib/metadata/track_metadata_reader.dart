@@ -1,7 +1,5 @@
-import 'package:metadata_audio/metadata_audio.dart' as audio;
-
-import '../playback/audio_bridge.dart';
 import '../sources/music_source.dart';
+import 'audio_metadata_reader.dart';
 import 'track_metadata.dart';
 
 abstract interface class TrackMetadataLoader {
@@ -9,18 +7,14 @@ abstract interface class TrackMetadataLoader {
 }
 
 class TrackMetadataReader implements TrackMetadataLoader {
+  TrackMetadataReader({AudioMetadataLoader? audioReader})
+    : _audioReader = audioReader ?? AudioMetadataReader();
+
+  final AudioMetadataLoader _audioReader;
+
   @override
   Future<TrackMetadata> read(MusicSource source, MusicEntry entry) async {
-    final bridge = await AudioBridge.start(source);
-    try {
-      final parsed = await audio.parseUrl(
-        bridge.register(entry).toString(),
-        options: audio.ParseOptions.metadataOnly(),
-        timeout: const Duration(seconds: 15),
-      );
-      return TrackMetadata.fromAudioMetadata(parsed);
-    } finally {
-      await bridge.close();
-    }
+    final parsed = await _audioReader.read(source, entry);
+    return TrackMetadata.fromAudioMetadata(parsed);
   }
 }
