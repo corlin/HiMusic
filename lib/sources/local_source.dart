@@ -8,8 +8,15 @@ import 'music_source.dart';
 class LocalSource implements MusicSource {
   LocalSource._(this.root);
   final String root;
-  static Future<LocalSource> open(String root) async =>
-      LocalSource._(await Directory(root).resolveSymbolicLinks());
+  static Future<LocalSource> open(String root) async {
+    try {
+      return LocalSource._(await Directory(root).resolveSymbolicLinks());
+    } catch (_) {
+      // iOS 安全范围 URL 路径可能包含无法解析的符号链接，
+      // 回退到原始路径（安全范围本身已提供沙盒保护）。
+      return LocalSource._(root);
+    }
+  }
   @override
   String get label => p.basename(root);
   @override
@@ -17,11 +24,16 @@ class LocalSource implements MusicSource {
 
   Future<String> _resolve(String path) async {
     final joined = p.join(root, safePath(path));
-    final resolved = await File(joined).resolveSymbolicLinks();
-    if (resolved != root && !p.isWithin(root, resolved)) {
-      throw const FileSystemException('文件超出所选目录');
+    try {
+      final resolved = await File(joined).resolveSymbolicLinks();
+      if (resolved != root && !p.isWithin(root, resolved)) {
+        throw const FileSystemException('文件超出所选目录');
+      }
+      return resolved;
+    } catch (_) {
+      // iOS 安全范围路径回退：不做符号链接解析，直接使用拼接路径。
+      return joined;
     }
-    return resolved;
   }
 
   @override

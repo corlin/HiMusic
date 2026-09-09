@@ -8,6 +8,7 @@ import '../metadata/track_metadata.dart';
 import '../playback/output_devices.dart';
 import '../playback/player_controller.dart';
 import '../playback/volume_controls.dart';
+import '../sources/ios_directory_picker.dart';
 import '../sources/local_source.dart';
 import '../sources/selected_files_source.dart';
 import '../sources/music_source.dart';
@@ -34,8 +35,27 @@ class _LibraryPageState extends State<LibraryPage> {
   late final PlayerController controller =
       widget.controller ?? PlayerController();
   final searchController = TextEditingController();
+  final _iosDirectoryPicker = IosDirectoryPicker();
   bool tvMode = false;
   String section = '音乐';
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreLastFolder();
+  }
+
+  Future<void> _restoreLastFolder() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    try {
+      final path = await _iosDirectoryPicker.restoreDirectory();
+      if (path != null && mounted && controller.source == null) {
+        await controller.connect(() => LocalSource.open(path), '');
+      }
+    } catch (_) {
+      // 自动恢复失败时静默忽略，用户可手动选择。
+    }
+  }
 
   @override
   void dispose() {
@@ -63,33 +83,70 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Future<void> addLocal() async {
     try {
-      if (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS) {
-        final files = await openFiles(
-          acceptedTypeGroups: const [
-            XTypeGroup(
-              label: '音乐与歌词',
-              mimeTypes: ['audio/*', 'text/plain'],
-              extensions: ['flac', 'mp3', 'm4a', 'aac', 'wav', 'alac', 'lrc'],
-              uniformTypeIdentifiers: ['public.audio', 'public.text'],
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final choice = await showModalBottomSheet<String>(
+          context: context,
+          builder: (_) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.folder_open_rounded),
+                  title: const Text('打开音乐文件夹'),
+                  subtitle: const Text('自动关联同名 .lrc 歌词，记住此文件夹'),
+                  onTap: () => Navigator.pop(context, 'folder'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.audio_file_rounded),
+                  title: const Text('选择音乐文件'),
+                  subtitle: const Text('手动多选音频和歌词文件'),
+                  onTap: () => Navigator.pop(context, 'files'),
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
-          ],
+          ),
         );
-        if (files.isNotEmpty) {
-          await controller.connect(() async => SelectedFilesSource(files), '');
+        if (choice == 'folder') {
+          final path = await _iosDirectoryPicker.pickDirectory();
+          if (path != null && mounted) {
+            await controller.connect(() => LocalSource.open(path), '');
+          }
+        } else if (choice == 'files') {
+          await _pickAudioFiles();
         }
+        return;
+      }
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _pickAudioFiles();
         return;
       }
       final path = await getDirectoryPath(confirmButtonText: '打开音乐目录');
       if (path != null) {
         await controller.connect(() => LocalSource.open(path), '');
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('无法打开本地音乐，请重试并选择可访问的音频文件。')),
+          SnackBar(content: Text('无法打开本地音乐：$e')),
         );
       }
+    }
+  }
+
+  Future<void> _pickAudioFiles() async {
+    final files = await openFiles(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: '音乐与歌词',
+          mimeTypes: ['audio/*', 'text/plain'],
+          extensions: ['flac', 'mp3', 'm4a', 'aac', 'wav', 'alac', 'lrc'],
+          uniformTypeIdentifiers: ['public.audio', 'public.text'],
+        ),
+      ],
+    );
+    if (files.isNotEmpty && mounted) {
+      await controller.connect(() async => SelectedFilesSource(files), '');
     }
   }
 
