@@ -93,4 +93,17 @@ class LocalSource implements MusicSource {
 
   @override
   Future<void> close() async {}
+
+  @override
+  Future<void> writeSidecar(
+    MusicEntry entry,
+    String extension,
+    Uint8List bytes,
+  ) async {
+    final audioPath = await _resolve(entry.path);
+    final dir = p.dirname(audioPath);
+    final base = p.basenameWithoutExtension(audioPath);
+    final target = p.join(dir, '$base.$extension');
+    await File(target).writeAsBytes(bytes, flush: true);
+  }
 }

@@ -3,14 +3,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 
+import '../metadata/track_metadata.dart';
+import 'lrclib_client.dart';
 import 'lyrics_controller.dart';
 import 'lyrics_document.dart';
 
 class LyricsView extends StatefulWidget {
-  const LyricsView({super.key, required this.controller, required this.onSeek});
+  const LyricsView({
+    super.key,
+    required this.controller,
+    required this.onSeek,
+    this.onFetchLyrics,
+  });
 
   final LyricsController controller;
   final ValueChanged<TimedLyricLine> onSeek;
+
+  /// 点击「获取歌词」时调用，返回当前歌曲的元数据。
+  /// 返回 null 表示无法获取（如未播放）。
+  final Future<TrackMetadata?> Function()? onFetchLyrics;
 
   @override
   State<LyricsView> createState() => _LyricsViewState();
@@ -85,6 +96,11 @@ class _LyricsViewState extends State<LyricsView> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    // 有候选歌词时弹出选择器
+    final choices = controller.pendingChoices;
+    if (choices != null && choices.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showChoices(choices));
+    }
     return switch (controller.status) {
       LyricsStatus.idle || LyricsStatus.loading => const Center(
         child: Column(
@@ -96,20 +112,105 @@ class _LyricsViewState extends State<LyricsView> {
           ],
         ),
       ),
-      LyricsStatus.empty => const _Message(
+      LyricsStatus.fetching => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 14),
+            Text('正在联网获取歌词…'),
+          ],
+        ),
+      ),
+      LyricsStatus.empty => _Message(
         icon: Icons.lyrics_outlined,
         text: '这首歌没有本地歌词',
+        action: widget.onFetchLyrics != null
+            ? TextButton.icon(
+          onPressed: _handleFetch,
+          icon: const Icon(Icons.cloud_download_rounded, size: 18),
+          label: const Text('联网获取'),
+        )
+            : null,
       ),
       LyricsStatus.error => _Message(
         icon: Icons.error_outline_rounded,
         text: '歌词读取失败',
-        action: TextButton(
-          onPressed: controller.retry,
-          child: const Text('重试'),
+        action: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(onPressed: controller.retry, child: const Text('重试')),
+            if (widget.onFetchLyrics != null)
+              TextButton.icon(
+                onPressed: _handleFetch,
+                icon: const Icon(Icons.cloud_download_rounded, size: 18),
+                label: const Text('联网获取'),
+              ),
+          ],
         ),
       ),
       LyricsStatus.ready => _content(controller.document!),
     };
+  }
+
+  Future<void> _handleFetch() async {
+    final metadata = await widget.onFetchLyrics?.call();
+    if (metadata == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('无法获取歌曲信息，请先播放歌曲')),
+        );
+      }
+      return;
+    }
+    await widget.controller.fetchOnline(metadata);
+  }
+
+  void _showChoices(List<LrclibLyrics> choices) {
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                '选择匹配的歌词',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: choices.length,
+                itemBuilder: (context, index) {
+                  final item = choices[index];
+                  return ListTile(
+                    leading: const Icon(Icons.music_note_rounded),
+                    title: Text(item.name ?? '未知歌曲'),
+                    subtitle: Text(
+                      [item.artistName, item.albumName]
+                          .where((s) => s != null && s.isNotEmpty)
+                          .join(' · '),
+                    ),
+                    trailing: item.hasSynced
+                        ? const Icon(Icons.timer_rounded, size: 16, color: Colors.green)
+                        : const Icon(Icons.article_rounded, size: 16, color: Colors.grey),
+                    onTap: () {
+                      Navigator.pop(context);
+                      widget.controller.applyChoice(item);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _content(LyricsDocument document) {

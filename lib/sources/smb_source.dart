@@ -105,6 +105,14 @@ class SmbSource implements MusicSource {
   }
   @override
   Future<void> close() => _pool.disconnect();
+
+  @override
+  Future<void> writeSidecar(
+    MusicEntry entry,
+    String extension,
+    Uint8List bytes,
+  ) =>
+      throw UnsupportedError('SMB 共享暂不支持写入歌词文件');
 }
 
 String sourceError(Object error) {

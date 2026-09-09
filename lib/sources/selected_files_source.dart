@@ -67,4 +67,21 @@ class SelectedFilesSource implements MusicSource {
 
   @override
   Future<void> close() async {}
+
+  @override
+  Future<void> writeSidecar(
+    MusicEntry entry,
+    String extension,
+    Uint8List bytes,
+  ) async {
+    final index = int.tryParse(entry.path);
+    if (index == null || index < 0 || index >= _files.length) {
+      throw const FileSystemException('无效文件索引');
+    }
+    final audioPath = _files[index].path;
+    final dir = p.dirname(audioPath);
+    final base = p.basenameWithoutExtension(_files[index].name);
+    final target = p.join(dir, '$base.$extension');
+    await File(target).writeAsBytes(bytes, flush: true);
+  }
 }

@@ -14,21 +14,24 @@ HiMusic is being built as one product for **Windows, macOS, iOS, Android, and An
 
 | Platform | Intended experience | Current prototype status |
 | --- | --- | --- |
-| macOS | Full desktop library and audio-output selection | Release build verified with local FLAC playback and waveform rendering |
+| macOS | Full desktop library and audio-output selection | Release build verified with local FLAC playback, waveform rendering, and online lyrics |
 | Windows | Desktop library for mouse and keyboard | Project target included; Windows-host validation is still required |
-| iPhone / iPad | Touch-first personal player | Simulator build verified; device import and background playback remain planned |
+| iPhone / iPad | Touch-first personal player | Physical device (corlin17mx) verified; folder picker with security-scoped bookmark persistence, sidecar .lrc lyrics, and online lyrics download |
 | Android | Touch-first personal player | Debug build available; physical-device validation remains planned |
 | Android TV / Google TV | Living-room player with a large-screen layout | TV layout included; remote-control and real-TV playback still need validation |
 
 ## What HiMusic can do today
 
 - **Play from your router:** connect to an SMB 2/3 share such as a USB drive attached to a ZTE Wentian BE7200 MAX.
-- **Play local folders:** open music stored directly on a desktop computer.
+- **Play local folders:** open music stored directly on a desktop computer or mobile device.
+- **iOS folder access:** pick a music folder once; the security-scoped bookmark is persisted so the app remembers it on relaunch without re-authorizing.
 - **Keep the original audio:** stream FLAC files with ranged reads and client-side decoding, without server transcoding.
 - **Show the music in detail:** browse a smooth, high-resolution waveform with zoomable detail, a full-track overview, and click-or-drag seeking.
+- **Display synced lyrics:** load sidecar `.lrc` files next to each song, or read embedded lyrics from audio metadata.
+- **Fetch lyrics online:** search and download lyrics from LRCLIB (lrclib.net); matched results are saved as `.lrc` sidecar files next to the audio.
 - **Control playback:** play, pause, skip, seek, retry failed reads, and manage an independent queue on each device.
 - **Control your listening device:** adjust app volume, mute and restore, and open platform-appropriate audio-output controls.
-- **Fit the room:** use the compact desktop layout or switch to a larger TV-oriented presentation.
+- **Fit the room:** use the compact desktop layout or switch to a larger TV-oriented presentation. Mobile uses a space-saving player bar.
 - **Protect the source library:** SMB access is read-only, and the prototype never deletes, renames, or rewrites music files.
 
 ## Made for a simple home setup
@@ -47,7 +50,7 @@ There is no central playback session: one person can listen on a computer while 
 
 ## Current product boundaries
 
-HiMusic 0.3.1 is a working prototype rather than a store-ready release. The current folder progressively loads track titles, performers, albums, credits, audio specifications, and embedded artwork. Cross-folder artist and album collections, persistent favorites and playlists, mobile background controls, account sync, offline downloads, and phone-to-TV control are still on the roadmap. Real-router concurrency, TV remote navigation, sleep recovery, and device-specific high-resolution output also need hardware testing.
+HiMusic 0.4.0 is a working prototype rather than a store-ready release. The current folder progressively loads track titles, performers, albums, credits, audio specifications, and embedded artwork. Sidecar `.lrc` lyrics and LRCLIB online lookup are supported. Cross-folder artist and album collections, persistent favorites and playlists, mobile background controls, account sync, offline downloads, and phone-to-TV control are still on the roadmap. Real-router concurrency, TV remote navigation, sleep recovery, and device-specific high-resolution output also need hardware testing.
 
 HiMusic reads original FLAC data, but this alone does not guarantee bit-perfect output; the operating system and playback device still control the final audio path.
 
@@ -66,7 +69,13 @@ Build the Android / Google TV debug package with:
 ./scripts/flutter.sh build apk --debug
 ```
 
-Inside the app, choose **Open Local Folder** for music on the computer, or **Connect SMB Share** for a router-connected drive. SMB passwords stay in memory for the current session and are not saved to disk.
+Build the iOS release app (requires Xcode and a connected device):
+
+```sh
+./scripts/flutter.sh build ios --release
+```
+
+Inside the app, choose **Open Local Folder** for music on the computer, or **Connect SMB Share** for a router-connected drive. On iOS, pick **Open Music Folder** to grant persistent folder access; sidecar `.lrc` lyrics are auto-associated, and missing lyrics can be fetched online from the Now Playing screen. SMB passwords stay in memory for the current session and are not saved to disk.
 
 ## Product and development notes
 

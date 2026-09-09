@@ -42,7 +42,7 @@ String safePath(String path) {
   return parts.join('/');
 }
 
-abstract interface class MusicSource {
+abstract class MusicSource {
   String get label;
   String get cacheNamespace;
   Future<List<MusicEntry>> list(String directory);
@@ -52,6 +52,15 @@ abstract interface class MusicSource {
     String extension, {
     required int maxBytes,
   });
+
+  /// 写入与 [entry] 同名的 sidecar 文件。
+  ///
+  /// [extension] 不含点，例如 `lrc`。
+  /// 默认不支持写入的源会抛出 [UnsupportedError]。
+  Future<void> writeSidecar(MusicEntry entry, String extension, Uint8List bytes) {
+    throw UnsupportedError('当前音源不支持写入歌词文件');
+  }
+
   Future<void> close();
 }
 

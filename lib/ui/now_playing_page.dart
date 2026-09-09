@@ -37,6 +37,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   final lyrics = LyricsView(
                     controller: widget.controller.lyrics,
                     onSeek: widget.controller.seekToLyric,
+                    onFetchLyrics: () async {
+                      final entry = widget.controller.current;
+                      if (entry == null) return null;
+                      final meta = widget.controller.metadata.metadataFor(entry);
+                      if (meta != null) return meta;
+                      // 元数据尚未扫描完成，用文件名构造基本信息
+                      final dot = entry.name.lastIndexOf('.');
+                      final title = dot > 0 ? entry.name.substring(0, dot) : entry.name;
+                      return TrackMetadata(title: title);
+                    },
                   );
                   final details = _ArtworkDetails(
                     entryName: current.name,

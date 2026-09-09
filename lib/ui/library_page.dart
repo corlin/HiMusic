@@ -750,54 +750,69 @@ class _ConnectedLibrary extends StatelessWidget {
         : controller.metadata.failedCount > 0
         ? '${controller.metadata.failedCount} 首歌曲信息无法读取'
         : '只读访问';
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        MediaQuery.sizeOf(context).width < 700 ? 16 : 28,
-        16,
-        MediaQuery.sizeOf(context).width < 700 ? 16 : 28,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '当前目录',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${controller.source!.label}${controller.directory.isEmpty ? '' : '  /  ${controller.directory}'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: _muted, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: controller.busy
-                    ? null
-                    : () => controller.browse(controller.directory),
-                icon: const Icon(Icons.sync_rounded, size: 17),
-                label: const Text('同步'),
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 700;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            narrow ? 14 : 28,
+            narrow ? 10 : 16,
+            narrow ? 14 : 28,
+            0,
           ),
-          if (audio.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _AlbumShelf(entries: audio, controller: controller, tvMode: tvMode),
-            const SizedBox(height: 22),
-          ],
-          _TableHeader(hasEntries: filtered.isNotEmpty),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: narrow
+                        ? Text(
+                            '${controller.source!.label}${controller.directory.isEmpty ? '' : '  /  ${controller.directory}'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '当前目录',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${controller.source!.label}${controller.directory.isEmpty ? '' : '  /  ${controller.directory}'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: _muted, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                  ),
+                  if (!narrow)
+                    TextButton.icon(
+                      onPressed: controller.busy
+                          ? null
+                          : () => controller.browse(controller.directory),
+                      icon: const Icon(Icons.sync_rounded, size: 17),
+                      label: const Text('同步'),
+                    ),
+                ],
+              ),
+              if (!narrow && audio.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _AlbumShelf(entries: audio, controller: controller, tvMode: tvMode),
+                const SizedBox(height: 22),
+              ],
+              if (narrow && audio.isNotEmpty) const SizedBox(height: 8),
+              _TableHeader(hasEntries: filtered.isNotEmpty),
           Expanded(
             child: filtered.isEmpty
                 ? Center(
@@ -841,6 +856,8 @@ class _ConnectedLibrary extends StatelessWidget {
         ],
       ),
     );
+  },
+);
   }
 }
 
@@ -1255,9 +1272,10 @@ class PlayerBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = controller.current;
     if (current == null) return const SizedBox.shrink();
+    final narrow = MediaQuery.sizeOf(context).width < 820;
     return Container(
-      constraints: const BoxConstraints(minHeight: 180),
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+      constraints: BoxConstraints(minHeight: narrow ? 64 : 180),
+      padding: EdgeInsets.fromLTRB(18, narrow ? 8 : 10, 18, narrow ? 8 : 12),
       decoration: const BoxDecoration(
         color: Color(0xff111814),
         border: Border(top: BorderSide(color: _divider)),
@@ -1268,6 +1286,7 @@ class PlayerBar extends StatelessWidget {
           final info = _NowPlayingInfo(
             controller: controller,
             onTap: () => _openNowPlaying(context),
+            compact: !horizontal,
           );
           final controls = _PlaybackControls(controller: controller);
           final waveform = PlayerWaveform(
@@ -1275,22 +1294,15 @@ class PlayerBar extends StatelessWidget {
             compact: true,
           );
           if (!horizontal) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
+            return Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: info),
-                    IconButton(
-                      tooltip: '歌词',
-                      onPressed: () => _openNowPlaying(context, lyrics: true),
-                      icon: const Icon(Icons.lyrics_rounded),
-                    ),
-                    controls,
-                  ],
+                Expanded(child: info),
+                IconButton(
+                  tooltip: '歌词',
+                  onPressed: () => _openNowPlaying(context, lyrics: true),
+                  icon: const Icon(Icons.lyrics_rounded, size: 20),
                 ),
-                waveform,
-                VolumeControls(controller: controller),
+                controls,
               ],
             );
           }
@@ -1351,14 +1363,20 @@ class PlayerBar extends StatelessWidget {
 }
 
 class _NowPlayingInfo extends StatelessWidget {
-  const _NowPlayingInfo({required this.controller, required this.onTap});
+  const _NowPlayingInfo({
+    required this.controller,
+    required this.onTap,
+    this.compact = false,
+  });
   final PlayerController controller;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final current = controller.current!;
     final metadata = controller.metadata.metadataFor(current);
+    final coverSize = compact ? 44.0 : 72.0;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -1368,34 +1386,34 @@ class _NowPlayingInfo extends StatelessWidget {
             borderRadius: BorderRadius.circular(7),
             child: metadata?.artwork == null
                 ? Container(
-                    width: 72,
-                    height: 72,
+                    width: coverSize,
+                    height: coverSize,
                     color: _surfaceRaised,
                     alignment: Alignment.center,
-                    child: const Icon(
+                    child: Icon(
                       Icons.album_rounded,
-                      size: 32,
+                      size: compact ? 22 : 32,
                       color: _muted,
                     ),
                   )
                 : Image.memory(
                     metadata!.artwork!,
-                    width: 72,
-                    height: 72,
+                    width: coverSize,
+                    height: coverSize,
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) => Container(
                       color: _surfaceRaised,
                       alignment: Alignment.center,
-                      child: const Icon(
+                      child: Icon(
                         Icons.album_rounded,
-                        size: 32,
+                        size: compact ? 22 : 32,
                         color: _muted,
                       ),
                     ),
                   ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
