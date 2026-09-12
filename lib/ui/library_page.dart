@@ -15,6 +15,7 @@ import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
 import '../theme.dart';
 import '../util/format.dart';
+import '../util/track_sort.dart';
 import '../waveform/player_waveform.dart';
 import 'now_playing_page.dart';
 
@@ -34,6 +35,46 @@ class _LibraryPageState extends State<LibraryPage> {
   final _iosDirectoryPicker = IosDirectoryPicker();
   bool tvMode = false;
   String section = '音乐';
+  TrackSortField? _sortField;
+  bool _sortAsc = true;
+  String? _albumFilter;
+  String? _artistFilter;
+
+  void _handleSort(TrackSortField field) {
+    setState(() {
+      if (_sortField != field) {
+        _sortField = field;
+        _sortAsc = true;
+      } else if (_sortAsc) {
+        _sortAsc = false;
+      } else {
+        _sortField = null; // 再次点击回到自然顺序
+      }
+    });
+  }
+
+  void _openAlbum(String album) {
+    setState(() {
+      _albumFilter = album;
+      _artistFilter = null;
+      section = '音乐';
+    });
+  }
+
+  void _openArtist(String artist) {
+    setState(() {
+      _artistFilter = artist;
+      _albumFilter = null;
+      section = '音乐';
+    });
+  }
+
+  void _clearGroupFilter() {
+    setState(() {
+      _albumFilter = null;
+      _artistFilter = null;
+    });
+  }
 
   @override
   void initState() {
@@ -147,10 +188,16 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void chooseSection(String next) {
-    setState(() => section = next);
-    if (next != '音乐' && next != '文件夹') {
+    setState(() {
+      section = next;
+      if (next != '音乐') {
+        _albumFilter = null;
+        _artistFilter = null;
+      }
+    });
+    if (next == '播放列表') {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$next将在音乐库索引完成后开放')));
+          .showSnackBar(const SnackBar(content: Text('播放列表将在播放队列功能完成后开放')));
     }
   }
 
@@ -197,6 +244,15 @@ class _LibraryPageState extends State<LibraryPage> {
                                 onTvMode: () =>
                                     setState(() => tvMode = !tvMode),
                                 onSearch: (_) => setState(() {}),
+                                section: section,
+                                sortField: _sortField,
+                                sortAsc: _sortAsc,
+                                onSort: _handleSort,
+                                albumFilter: _albumFilter,
+                                artistFilter: _artistFilter,
+                                onClearGroupFilter: _clearGroupFilter,
+                                onOpenAlbum: _openAlbum,
+                                onOpenArtist: _openArtist,
                               ),
                             ),
                           ],
@@ -311,9 +367,13 @@ class _Brand extends StatelessWidget {
         ),
       ),
       SizedBox(width: 12),
-      Text(
-        'HiMusic',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      Flexible(
+        child: Text(
+          'HiMusic',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+        ),
       ),
     ],
   );
@@ -445,6 +505,15 @@ class _LibraryContent extends StatelessWidget {
     required this.onLocal,
     required this.onTvMode,
     required this.onSearch,
+    required this.section,
+    required this.sortField,
+    required this.sortAsc,
+    required this.onSort,
+    required this.albumFilter,
+    required this.artistFilter,
+    required this.onClearGroupFilter,
+    required this.onOpenAlbum,
+    required this.onOpenArtist,
   });
 
   final PlayerController controller;
@@ -455,6 +524,15 @@ class _LibraryContent extends StatelessWidget {
   final VoidCallback onLocal;
   final VoidCallback onTvMode;
   final ValueChanged<String> onSearch;
+  final String section;
+  final TrackSortField? sortField;
+  final bool sortAsc;
+  final ValueChanged<TrackSortField> onSort;
+  final String? albumFilter;
+  final String? artistFilter;
+  final VoidCallback onClearGroupFilter;
+  final ValueChanged<String> onOpenAlbum;
+  final ValueChanged<String> onOpenArtist;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -477,11 +555,28 @@ class _LibraryContent extends StatelessWidget {
       Expanded(
         child: controller.source == null
             ? _Welcome(onSmb: onSmb, onLocal: onLocal)
-            : _ConnectedLibrary(
-                controller: controller,
-                query: searchController.text,
-                tvMode: tvMode,
-              ),
+            : switch (section) {
+                '专辑' => _AlbumSection(
+                    controller: controller,
+                    tvMode: tvMode,
+                    onOpen: onOpenAlbum,
+                  ),
+                '艺术家' => _ArtistSection(
+                    controller: controller,
+                    onOpen: onOpenArtist,
+                  ),
+                _ => _ConnectedLibrary(
+                    controller: controller,
+                    query: searchController.text,
+                    tvMode: tvMode,
+                    sortField: sortField,
+                    sortAsc: sortAsc,
+                    onSort: onSort,
+                    albumFilter: albumFilter,
+                    artistFilter: artistFilter,
+                    onClearGroupFilter: onClearGroupFilter,
+                  ),
+              },
       ),
     ],
   );
@@ -585,7 +680,10 @@ class _TopBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (showBrand) ...[const _Brand(), const SizedBox(width: 18)],
+            if (showBrand) ...[
+              const Expanded(child: _Brand()),
+              const SizedBox(width: 18),
+            ],
             IconButton(
               tooltip: '上一级',
               onPressed: controller.busy || controller.directory.isEmpty
@@ -716,16 +814,28 @@ class _ConnectedLibrary extends StatelessWidget {
     required this.controller,
     required this.query,
     required this.tvMode,
+    required this.sortField,
+    required this.sortAsc,
+    required this.onSort,
+    required this.albumFilter,
+    required this.artistFilter,
+    required this.onClearGroupFilter,
   });
 
   final PlayerController controller;
   final String query;
   final bool tvMode;
+  final TrackSortField? sortField;
+  final bool sortAsc;
+  final ValueChanged<TrackSortField> onSort;
+  final String? albumFilter;
+  final String? artistFilter;
+  final VoidCallback onClearGroupFilter;
 
   @override
   Widget build(BuildContext context) {
     final normalized = query.trim().toLowerCase();
-    final filtered = controller.entries.where((entry) {
+    var filtered = controller.entries.where((entry) {
       if (entry.name.toLowerCase().contains(normalized)) return true;
       final metadata = controller.metadata.metadataFor(entry);
       return [
@@ -740,6 +850,28 @@ class _ConnectedLibrary extends StatelessWidget {
         (value) => value.toLowerCase().contains(normalized),
       );
     }).toList();
+    if (albumFilter != null || artistFilter != null) {
+      filtered = filtered.where((entry) {
+        if (entry.isDirectory) return false;
+        final metadata = controller.metadata.metadataFor(entry);
+        if (albumFilter != null) {
+          final album = metadata?.album?.trim();
+          return albumFilter == '未知专辑'
+              ? album == null || album.isEmpty
+              : album == albumFilter;
+        }
+        final artist = metadata?.artistLine;
+        return artistFilter == '未知艺术家'
+            ? artist == null || artist.isEmpty
+            : artist == artistFilter;
+      }).toList();
+    }
+    filtered = applyTrackSort(
+      entries: filtered,
+      field: sortField,
+      ascending: sortAsc,
+      metadataFor: controller.metadata.metadataFor,
+    );
     final audio = filtered.where((entry) => entry.isAudio).toList();
     final metadataStatus = controller.metadata.isScanning
         ? '正在读取歌曲信息…'
@@ -802,13 +934,58 @@ class _ConnectedLibrary extends StatelessWidget {
                     ),
                 ],
               ),
+              if (albumFilter != null || artistFilter != null) ...[
+                const SizedBox(height: 14),
+                Material(
+                  color: AppColors.surfaceRaised,
+                  borderRadius: BorderRadius.circular(18),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: onClearGroupFilter,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.filter_alt_rounded,
+                            size: 16,
+                            color: AppColors.accent,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            albumFilter != null
+                                ? '专辑：$albumFilter'
+                                : '艺术家：$artistFilter',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.close_rounded,
+                            size: 15,
+                            color: AppColors.muted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               if (!narrow && audio.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 _AlbumShelf(entries: audio, controller: controller, tvMode: tvMode),
                 const SizedBox(height: 22),
               ],
               if (narrow && audio.isNotEmpty) const SizedBox(height: 8),
-              _TableHeader(hasEntries: filtered.isNotEmpty),
+              _TableHeader(
+                hasEntries: filtered.isNotEmpty,
+                sortField: sortField,
+                sortAsc: sortAsc,
+                onSort: onSort,
+              ),
           Expanded(
             child: filtered.isEmpty
                 ? Center(
@@ -855,6 +1032,224 @@ class _ConnectedLibrary extends StatelessWidget {
   },
 );
   }
+}
+
+class _AlbumSection extends StatelessWidget {
+  const _AlbumSection({
+    required this.controller,
+    required this.tvMode,
+    required this.onOpen,
+  });
+
+  final PlayerController controller;
+  final bool tvMode;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final albums = <String, List<MusicEntry>>{};
+    for (final entry in controller.entries.where((entry) => entry.isAudio)) {
+      final album = controller.metadata.metadataFor(entry)?.album?.trim();
+      albums
+          .putIfAbsent(album == null || album.isEmpty ? '未知专辑' : album, () => [])
+          .add(entry);
+    }
+    final names = albums.keys.toList()..sort();
+    if (names.isEmpty) {
+      return const Center(
+        child: Text(
+          '当前目录没有可浏览的音乐',
+          style: TextStyle(color: AppColors.muted),
+        ),
+      );
+    }
+    final tileSize = tvMode ? 200.0 : 176.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 18, 28, 14),
+          child: Text(
+            '专辑 · ${names.length}',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 12),
+            children: [
+              Wrap(
+                spacing: 18,
+                runSpacing: 22,
+                children: [
+                  for (final name in names)
+                    _AlbumBrowserTile(
+                      name: name,
+                      entries: albums[name]!,
+                      controller: controller,
+                      size: tileSize,
+                      onTap: () => onOpen(name),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AlbumBrowserTile extends StatelessWidget {
+  const _AlbumBrowserTile({
+    required this.name,
+    required this.entries,
+    required this.controller,
+    required this.size,
+    required this.onTap,
+  });
+
+  final String name;
+  final List<MusicEntry> entries;
+  final PlayerController controller;
+  final double size;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    Uint8List? cover;
+    for (final entry in entries) {
+      final artwork = controller.metadata.metadataFor(entry)?.artwork;
+      if (artwork != null) {
+        cover = artwork;
+        break;
+      }
+    }
+    final artist = _firstArtist(entries, controller);
+    return SizedBox(
+      width: size,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: cover == null
+                    ? Container(
+                        color: AppColors.surfaceRaised,
+                        child: const Icon(
+                          Icons.album_rounded,
+                          size: 46,
+                          color: Colors.white24,
+                        ),
+                      )
+                    : Image.memory(cover, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              [
+                ?artist,
+                '${entries.length} 首',
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArtistSection extends StatelessWidget {
+  const _ArtistSection({
+    required this.controller,
+    required this.onOpen,
+  });
+
+  final PlayerController controller;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final artists = <String, List<MusicEntry>>{};
+    for (final entry in controller.entries.where((entry) => entry.isAudio)) {
+      final line = controller.metadata.metadataFor(entry)?.artistLine?.trim();
+      artists
+          .putIfAbsent(line == null || line.isEmpty ? '未知艺术家' : line, () => [])
+          .add(entry);
+    }
+    final names = artists.keys.toList()..sort();
+    if (names.isEmpty) {
+      return const Center(
+        child: Text(
+          '当前目录没有可浏览的音乐',
+          style: TextStyle(color: AppColors.muted),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 18, 28, 10),
+          child: Text(
+            '艺术家 · ${names.length}',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 12),
+            itemCount: names.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final name = names[index];
+              final count = artists[name]!.length;
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.surfaceRaised,
+                  child: Icon(Icons.person_rounded, color: Colors.white54),
+                ),
+                title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  '$count 首',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.muted,
+                ),
+                onTap: () => onOpen(name),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String? _firstArtist(List<MusicEntry> entries, PlayerController controller) {
+  for (final entry in entries) {
+    final line = controller.metadata.metadataFor(entry)?.artistLine;
+    if (line != null && line.isNotEmpty) return line;
+  }
+  return null;
 }
 
 class _AlbumShelf extends StatelessWidget {
@@ -964,39 +1359,98 @@ class _AlbumTile extends StatelessWidget {
 }
 
 class _TableHeader extends StatelessWidget {
-  const _TableHeader({required this.hasEntries});
+  const _TableHeader({
+    required this.hasEntries,
+    required this.sortField,
+    required this.sortAsc,
+    required this.onSort,
+  });
+
   final bool hasEntries;
+  final TrackSortField? sortField;
+  final bool sortAsc;
+  final ValueChanged<TrackSortField> onSort;
+
+  Widget _label(String text, {TrackSortField? field}) {
+    if (field == null) {
+      return Text(text, style: const TextStyle(color: AppColors.muted));
+    }
+    final active = sortField == field;
+    return InkWell(
+      onTap: hasEntries ? () => onSort(field) : null,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text,
+              style: TextStyle(
+                color: active ? AppColors.accent : AppColors.muted,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+            if (active) ...[
+              const SizedBox(width: 3),
+              Icon(
+                sortAsc
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
+                size: 13,
+                color: AppColors.accent,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) => Container(
-    height: 34,
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: AppColors.divider)),
-    ),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 46,
-          child: Text('#', style: TextStyle(color: AppColors.muted)),
-        ),
-        Expanded(
-          flex: 5,
-          child: Text('标题', style: TextStyle(color: AppColors.muted)),
-        ),
-        if (MediaQuery.sizeOf(context).width >= 700)
-          Expanded(
-            flex: 3,
-            child: Text('艺术家 / 专辑', style: TextStyle(color: AppColors.muted)),
-          ),
-        if (MediaQuery.sizeOf(context).width >= 700)
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final showDuration = width >= 840;
+    return Container(
+      height: 34,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: Row(
+        children: [
           SizedBox(
-            width: 160,
-            child: Text('格式', style: TextStyle(color: AppColors.muted)),
+            width: 46,
+            child: Text('#', style: const TextStyle(color: AppColors.muted)),
           ),
-        SizedBox(width: 42),
-      ],
-    ),
-  );
+          Expanded(
+            flex: 5,
+            child: _label('标题', field: TrackSortField.title),
+          ),
+          if (width >= 700) ...[
+            Expanded(
+              flex: 2,
+              child: _label('艺术家', field: TrackSortField.artist),
+            ),
+            Expanded(
+              flex: 2,
+              child: _label('专辑', field: TrackSortField.album),
+            ),
+          ],
+          if (showDuration)
+            SizedBox(
+              width: 64,
+              child: _label('时长', field: TrackSortField.duration),
+            ),
+          if (width >= 700)
+            SizedBox(
+              width: 150,
+              child: _label('格式', field: TrackSortField.size),
+            ),
+          SizedBox(width: 42),
+        ],
+      ),
+    );
+  }
 }
 
 class _TrackRow extends StatelessWidget {
@@ -1116,16 +1570,35 @@ class _TrackRow extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: Text(
-                      entry.isDirectory ? '文件夹' : _artistAlbum(metadata),
+                      entry.isDirectory ? '文件夹' : metadata?.artistLine ?? '—',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: AppColors.muted),
                     ),
                   ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      entry.isDirectory ? '—' : metadata?.album ?? '—',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                  ),
+                  if (MediaQuery.sizeOf(context).width >= 840)
+                    SizedBox(
+                      width: 64,
+                      child: Text(
+                        entry.isDirectory || metadata?.duration == null
+                            ? '—'
+                            : formatDuration(metadata!.duration!),
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                    ),
                   SizedBox(
-                    width: 160,
+                    width: 150,
                     child: Text(
                       entry.isDirectory
                           ? '—'

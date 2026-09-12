@@ -120,3 +120,12 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - `flutter analyze` 无问题，完整测试 54 项通过。macOS、签名 iOS 和 Android Release 构建成功，产物分别为 `build/macos/Build/Products/Release/himusic.app`、`build/ios/iphoneos/Runner.app`、`build/app/outputs/flutter-apk/app-release.apk`。
 - 最新 iOS Release 已安装并启动于 `corlin17mx`（iPhone 17 Pro Max），进程与非白屏截图已核验，截图保存在未提交的 `build/verification/corlin17mx-lyrics-build.png`。
 - 实机当时停留在已有 SMB 输入弹窗，尚未完成设备端选择音频与 LRC 后的滚动/点击验收；真实 SMB 同名歌词读取也仍需共享盘样本。
+
+## 0.5.0 元数据曲目表（2026-09-11）
+
+- 元数据解析链路（`MetadataIndex` 代次扫描/取消/LRU、`TrackMetadata` 字段、LRCLIB 用元数据参数匹配）在 0.4.0 已完成；本版落地 UI：宽屏曲目表新增**艺术家、专辑、时长**三列，窄屏保持紧凑副标题。
+- 表头点击排序：标题/艺术家/专辑/时长/格式，升序 → 降序 → 回到自然顺序循环；目录条目固定置顶、元数据缺失排后、排序稳定。排序逻辑收敛到纯函数 `lib/util/track_sort.dart`，与 UI 解耦。
+- 侧栏"专辑""艺术家"分区落地：按当前目录音频聚合（未知专辑/未知艺术家归组），点入后回到曲目表并带筛选 chip，可一键清除；目录变化自动清筛选。侧栏"播放列表"仍为占位（0.6.0 队列功能落地）。
+- 顺手修复既有宽屏隐患：侧栏品牌行在窄容器下文本无法收缩（测试字体下溢出 4.8 px），品牌行文本改为可收缩省略，TopBar 宽版品牌改用 Expanded 承接。
+- `flutter analyze` 无问题（排除未跟踪的联网调试测试）；完整测试 67 项通过（原 54 + 排序 9 + 分区/表头组件 4）；macOS Debug 构建与启动冒烟通过。
+- 0.5.0 规划文档：`docs/superpowers/specs/2026-09-11-metadata-queue-background-design.md` 与 `docs/superpowers/plans/2026-09-11-metadata-queue-background.md`（含 0.6.0 队列/播放模式与 0.7.0 后台播放的多端全做决策）。
