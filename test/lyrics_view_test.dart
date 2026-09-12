@@ -8,7 +8,7 @@ import 'package:himusic/lyrics/lyrics_repository.dart';
 import 'package:himusic/lyrics/lyrics_view.dart';
 import 'package:himusic/sources/music_source.dart';
 
-class _Source implements MusicSource {
+class _Source extends MusicSource {
   @override
   String get label => 'test';
   @override

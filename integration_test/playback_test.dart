@@ -121,7 +121,7 @@ void main() {
   });
 }
 
-class FailingSource implements MusicSource {
+class FailingSource extends MusicSource {
   FailingSource(this.inner);
   final MusicSource inner;
   bool failNextList = false;

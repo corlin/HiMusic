@@ -71,8 +71,8 @@ void main() {
   });
 }
 
-class _DesignSource implements MusicSource {
-  const _DesignSource(this.local);
+class _DesignSource extends MusicSource {
+  _DesignSource(this.local);
   final LocalSource local;
 
   @override

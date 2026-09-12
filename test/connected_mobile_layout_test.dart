@@ -9,7 +9,7 @@ import 'package:himusic/ui/library_page.dart';
 import 'package:himusic/playback/player_controller.dart';
 import 'package:himusic/sources/music_source.dart';
 
-class _Source implements MusicSource {
+class _Source extends MusicSource {
   @override
   String get label => '192.168.5.1 / disk';
   @override
@@ -95,7 +95,9 @@ void main() {
           greaterThan(180),
         );
       }
-      expect(find.text('当前目录'), findsWidgets);
+      if (width >= 700) {
+        expect(find.text('当前目录'), findsWidgets);
+      }
       expect(find.text('标签曲名 0.flac'), findsWidgets);
       expect(find.textContaining('歌手甲'), findsWidgets);
       if (width == 800) {

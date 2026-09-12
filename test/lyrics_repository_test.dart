@@ -14,7 +14,7 @@ const _song = MusicEntry(
   size: 10,
 );
 
-class _Source implements MusicSource {
+class _Source extends MusicSource {
   _Source({this.sidecar});
   Uint8List? sidecar;
   int sidecarReads = 0;

@@ -6,7 +6,7 @@ import 'package:himusic/metadata/track_metadata.dart';
 import 'package:himusic/metadata/track_metadata_reader.dart';
 import 'package:himusic/sources/music_source.dart';
 
-class _Source implements MusicSource {
+class _Source extends MusicSource {
   @override
   String get label => '测试来源';
   @override
