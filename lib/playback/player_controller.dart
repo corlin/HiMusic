@@ -265,17 +265,21 @@ class PlayerController extends ChangeNotifier {
     }
   }
 
-  Future<void> toggle() => run(() async {
-    if (player.playing) {
-      _wantsPlayback = false;
-      await player.pause();
-    } else {
-      if (player.processingState == ProcessingState.completed) {
-        await player.seek(Duration.zero, index: 0);
-      }
-      unawaited(_play());
+  Future<void> play() => run(() async {
+    if (player.processingState == ProcessingState.completed) {
+      await player.seek(Duration.zero, index: 0);
     }
+    unawaited(_play());
   });
+  Future<void> pause() => run(() async {
+    _wantsPlayback = false;
+    await player.pause();
+  });
+  Future<void> stopPlayback() => run(() async {
+    _wantsPlayback = false;
+    await player.stop();
+  });
+  Future<void> toggle() => player.playing ? pause() : play();
   Future<void> retry() async {
     final action = _retryAction;
     if (action != null) await run(action);

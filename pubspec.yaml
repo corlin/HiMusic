@@ -2,7 +2,7 @@ name: himusic
 description: "家庭共享硬盘音乐播放器"
 publish_to: 'none'
 
-version: 0.6.0+1
+version: 0.7.0+1
 
 environment:
   sdk: ^3.13.2
@@ -14,6 +14,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   dart_smb2: 0.1.2
   just_audio: ^0.10.6
+  audio_service: ^0.18.19
   just_audio_media_kit: ^2.1.0
   media_kit_libs_windows_audio: ^1.0.9
   file_selector: ^1.1.0

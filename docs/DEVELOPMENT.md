@@ -139,3 +139,13 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - 测试：新增 `test/queue_math_test.dart`（移除索引映射 5 项）与 `test/queue_view_test.dart`（空态/条目渲染/移除不崩溃/播放入口启用禁用 4 项），全量 76 项通过；`flutter analyze` 无问题（排除未跟踪联网调试文件）；macOS Debug 构建与启动冒烟通过。
 - 随机切换、队列跳转/移除的播放器级行为（依赖真实音频平台）待 P0 真机验收：iOS corlin17mx 与 Android TV MiTV。
 - 版本 0.6.0+1。
+
+## 0.7.0 后台播放（2026-09-12）
+
+- 引入 `audio_service 0.18.19`，新增适配层 `lib/playback/audio_handler.dart`（`HiMusicAudioHandler extends BaseAudioHandler`）：把 `PlayerController` 的播放/暂停/seek/上下曲/停止映射到系统媒体控制；同步队列文字信息与当前媒体项；`PlayerController` 不反向依赖 audio_service（保持组件边界）。
+- **媒体信息**：标题用元数据 `displayTitle`（文件名兜底）、艺术家/专辑/时长映射；封面写入临时文件以 `artUri: file://` 提供（`MediaItem` 0.18.19 无 `artBytes`），无封面用内置占位图 `assets/artwork/placeholder-cover.jpg`（sips 生成 512 JPEG）。媒体信息构造抽为纯函数 `buildMediaItem` 便于单测。
+- **启动接线**：`main.dart` 在非 Web 且非 Windows 平台 `AudioService.init`（builder 持有同一 `PlayerController` 并传入 `LibraryPage`）；初始化失败自动回退为 LibraryPage 自建控制器（保持现有行为）。Windows 无 audio_service 平台实现，保持现状（符合"桌面有系统媒体控制则显示、无则保持"决策）。
+- **平台配置**：iOS `Info.plist` 加 `UIBackgroundModes: [audio]`；Android `AndroidManifest.xml` 加 `WAKE_LOCK`/`FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_MEDIA_PLAYBACK`/`POST_NOTIFICATIONS` 权限与 `AudioService` service（mediaPlayback）+ `MediaButtonReceiver`；`MainActivity` 继承改为 `com.ryanheise.audioservice.AudioServiceFragmentActivity`（保留输出切换 MethodChannel）。macOS 走 Swift Package Manager 集成（audio_service 的 darwin 实现进入 GeneratedPluginSwiftPackage，无需 Podfile）。
+- 测试：新增 `test/audio_handler_test.dart` 5 项（媒体信息构造有/无元数据、封面路径、队列同步、播放状态初始映射），全量 81 项通过；`flutter analyze` 无问题；macOS Debug 构建 + 启动冒烟通过（含 audio_service 原生初始化）。
+- 待真机门禁（本机无 Android SDK，Android 侧配置未经本地编译）：iOS 锁屏控制 + 后台续播 + 打断恢复；Android 手机前台通知；TV 返回桌面续播；Windows 保持现状回归。
+- 版本 0.7.0+1。
