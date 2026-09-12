@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../playback/player_controller.dart';
+import '../util/format.dart';
 import 'waveform_data.dart';
 import 'waveform_view.dart';
 
@@ -227,13 +228,10 @@ class _SmoothWaveformState extends State<_SmoothWaveform>
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(_time(position), style: const TextStyle(fontSize: 11)),
-          Text(_time(widget.duration), style: const TextStyle(fontSize: 11)),
+          Text(formatDuration(position), style: const TextStyle(fontSize: 11)),
+          Text(formatDuration(widget.duration), style: const TextStyle(fontSize: 11)),
         ],
       ),
     ],
   );
-
-  String _time(Duration value) =>
-      '${value.inMinutes}:${(value.inSeconds % 60).toString().padLeft(2, '0')}';
 }

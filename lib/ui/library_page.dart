@@ -13,14 +13,10 @@ import '../sources/local_source.dart';
 import '../sources/selected_files_source.dart';
 import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
+import '../theme.dart';
+import '../util/format.dart';
 import '../waveform/player_waveform.dart';
 import 'now_playing_page.dart';
-
-const _accent = Color(0xffb7d89c);
-const _background = Color(0xff0f1512);
-const _surfaceRaised = Color(0xff1b241e);
-const _divider = Color(0xff273029);
-const _muted = Color(0xff98a198);
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key, this.controller});
@@ -171,7 +167,7 @@ class _LibraryPageState extends State<LibraryPage> {
         child: RepaintBoundary(
           key: const Key('library-capture-boundary'),
           child: Scaffold(
-            backgroundColor: _background,
+            backgroundColor: AppColors.background,
             body: LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 980;
@@ -238,8 +234,8 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 232,
     decoration: const BoxDecoration(
-      color: Color(0xff111814),
-      border: Border(right: BorderSide(color: _divider)),
+      color: AppColors.sidebar,
+      border: Border(right: BorderSide(color: AppColors.divider)),
     ),
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
@@ -305,13 +301,13 @@ class _Brand extends StatelessWidget {
     children: [
       DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.fromBorderSide(BorderSide(color: _accent, width: 1.5)),
+          border: Border.fromBorderSide(BorderSide(color: AppColors.accent, width: 1.5)),
           borderRadius: BorderRadius.all(Radius.circular(9)),
         ),
         child: SizedBox(
           width: 36,
           height: 36,
-          child: Icon(Icons.library_music_rounded, color: _accent, size: 22),
+          child: Icon(Icons.library_music_rounded, color: AppColors.accent, size: 22),
         ),
       ),
       SizedBox(width: 12),
@@ -356,7 +352,7 @@ class _NavigationItem extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Material(
-      color: selected ? _accent : Colors.transparent,
+      color: selected ? AppColors.accent : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -369,13 +365,13 @@ class _NavigationItem extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: selected ? _background : Colors.white70,
+                color: selected ? AppColors.background : Colors.white70,
               ),
               const SizedBox(width: 13),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? _background : Colors.white70,
+                  color: selected ? AppColors.background : Colors.white70,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
@@ -402,7 +398,7 @@ class _SourceItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: active ? _surfaceRaised : Colors.transparent,
+    color: active ? AppColors.surfaceRaised : Colors.transparent,
     borderRadius: BorderRadius.circular(8),
     child: InkWell(
       borderRadius: BorderRadius.circular(8),
@@ -412,7 +408,7 @@ class _SourceItem extends StatelessWidget {
         child: Row(
           children: [
             const SizedBox(width: 13),
-            Icon(icon, size: 19, color: active ? _accent : Colors.white60),
+            Icon(icon, size: 19, color: active ? AppColors.accent : Colors.white60),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -425,7 +421,7 @@ class _SourceItem extends StatelessWidget {
             if (active) ...[
               const DecoratedBox(
                 decoration: BoxDecoration(
-                  color: _accent,
+                  color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
                 child: SizedBox(width: 7, height: 7),
@@ -585,7 +581,7 @@ class _TopBar extends StatelessWidget {
         height: 72,
         padding: const EdgeInsets.symmetric(horizontal: 22),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: _divider)),
+          border: Border(bottom: BorderSide(color: AppColors.divider)),
         ),
         child: Row(
           children: [
@@ -670,7 +666,7 @@ class _Welcome extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.library_music_rounded, size: 66, color: _accent),
+          const Icon(Icons.library_music_rounded, size: 66, color: AppColors.accent),
           const SizedBox(height: 24),
           const Text(
             '家里的音乐，随时听。',
@@ -681,7 +677,7 @@ class _Welcome extends StatelessWidget {
           const Text(
             '连接共享硬盘，或选择本地音乐',
             textAlign: TextAlign.center,
-            style: TextStyle(color: _muted),
+            style: TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 26),
           FilledButton.icon(
@@ -791,7 +787,7 @@ class _ConnectedLibrary extends StatelessWidget {
                                 '${controller.source!.label}${controller.directory.isEmpty ? '' : '  /  ${controller.directory}'}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: _muted, fontSize: 13),
+                                style: const TextStyle(color: AppColors.muted, fontSize: 13),
                               ),
                             ],
                           ),
@@ -821,7 +817,7 @@ class _ConnectedLibrary extends StatelessWidget {
                           ? '此目录暂无支持的音乐文件或子目录'
                           : '没有匹配的音乐或文件夹\n试试其他关键词，或清除搜索查看全部',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: _muted),
+                      style: const TextStyle(color: AppColors.muted),
                     ),
                   )
                 : ListView.separated(
@@ -922,12 +918,12 @@ class _AlbumTile extends StatelessWidget {
                 ? Container(
                     width: size,
                     height: size,
-                    color: _surfaceRaised,
+                    color: AppColors.surfaceRaised,
                     alignment: Alignment.center,
                     child: Icon(
                       Icons.album_rounded,
                       size: size * .36,
-                      color: _muted,
+                      color: AppColors.muted,
                     ),
                   )
                 : Image.memory(
@@ -938,19 +934,19 @@ class _AlbumTile extends StatelessWidget {
                     filterQuality: FilterQuality.medium,
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) => Container(
-                      color: _surfaceRaised,
+                      color: AppColors.surfaceRaised,
                       alignment: Alignment.center,
                       child: Icon(
                         Icons.album_rounded,
                         size: size * .36,
-                        color: _muted,
+                        color: AppColors.muted,
                       ),
                     ),
                   ),
           ),
           const SizedBox(height: 7),
           Text(
-            metadata?.displayTitle(entry.name) ?? _cleanTitle(entry.name),
+            metadata?.displayTitle(entry.name) ?? stripExtension(entry.name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w500),
@@ -959,7 +955,7 @@ class _AlbumTile extends StatelessWidget {
             metadata?.artistLine ??
                 metadata?.album ??
                 entry.extension.toUpperCase(),
-            style: const TextStyle(color: _muted, fontSize: 12),
+            style: const TextStyle(color: AppColors.muted, fontSize: 12),
           ),
         ],
       ),
@@ -975,27 +971,27 @@ class _TableHeader extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     height: 34,
     decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: _divider)),
+      border: Border(bottom: BorderSide(color: AppColors.divider)),
     ),
     child: Row(
       children: [
         SizedBox(
           width: 46,
-          child: Text('#', style: TextStyle(color: _muted)),
+          child: Text('#', style: TextStyle(color: AppColors.muted)),
         ),
         Expanded(
           flex: 5,
-          child: Text('标题', style: TextStyle(color: _muted)),
+          child: Text('标题', style: TextStyle(color: AppColors.muted)),
         ),
         if (MediaQuery.sizeOf(context).width >= 700)
           Expanded(
             flex: 3,
-            child: Text('艺术家 / 专辑', style: TextStyle(color: _muted)),
+            child: Text('艺术家 / 专辑', style: TextStyle(color: AppColors.muted)),
           ),
         if (MediaQuery.sizeOf(context).width >= 700)
           SizedBox(
             width: 160,
-            child: Text('格式', style: TextStyle(color: _muted)),
+            child: Text('格式', style: TextStyle(color: AppColors.muted)),
           ),
         SizedBox(width: 42),
       ],
@@ -1022,10 +1018,10 @@ class _TrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: selected ? const Color(0xff182219) : Colors.transparent,
+    color: selected ? AppColors.selectedRow : Colors.transparent,
     child: InkWell(
       autofocus: index == 0,
-      focusColor: const Color(0xff223021),
+      focusColor: AppColors.rowFocus,
       onTap: onTap,
       child: MediaQuery.sizeOf(context).width < 700
           ? SizedBox(
@@ -1037,7 +1033,7 @@ class _TrackRow extends StatelessWidget {
                         ? Icons.folder_outlined
                         : Icons.music_note_rounded,
                     size: 20,
-                    color: selected ? _accent : _muted,
+                    color: selected ? AppColors.accent : AppColors.muted,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1047,11 +1043,11 @@ class _TrackRow extends StatelessWidget {
                       children: [
                         Text(
                           metadata?.displayTitle(entry.name) ??
-                              _cleanTitle(entry.name),
+                              stripExtension(entry.name),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: selected ? _accent : Colors.white,
+                            color: selected ? AppColors.accent : Colors.white,
                           ),
                         ),
                         Text(
@@ -1062,7 +1058,7 @@ class _TrackRow extends StatelessWidget {
                                     '${entry.extension.toUpperCase()} · ${(entry.size / 1048576).toStringAsFixed(1)} MB',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: _muted, fontSize: 12),
+                          style: const TextStyle(color: AppColors.muted, fontSize: 12),
                         ),
                       ],
                     ),
@@ -1082,11 +1078,11 @@ class _TrackRow extends StatelessWidget {
                         ? const Icon(
                             Icons.graphic_eq_rounded,
                             size: 17,
-                            color: _accent,
+                            color: AppColors.accent,
                           )
                         : Text(
                             '${index + 1}',
-                            style: const TextStyle(color: _muted),
+                            style: const TextStyle(color: AppColors.muted),
                           ),
                   ),
                   Expanded(
@@ -1098,17 +1094,17 @@ class _TrackRow extends StatelessWidget {
                               ? Icons.folder_outlined
                               : Icons.music_note_rounded,
                           size: 18,
-                          color: selected ? _accent : Colors.white54,
+                          color: selected ? AppColors.accent : Colors.white54,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             metadata?.displayTitle(entry.name) ??
-                                _cleanTitle(entry.name),
+                                stripExtension(entry.name),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: selected ? _accent : Colors.white,
+                              color: selected ? AppColors.accent : Colors.white,
                               fontSize: tvMode ? 18 : 14,
                               fontWeight: selected
                                   ? FontWeight.w600
@@ -1125,7 +1121,7 @@ class _TrackRow extends StatelessWidget {
                       entry.isDirectory ? '文件夹' : _artistAlbum(metadata),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: _muted),
+                      style: const TextStyle(color: AppColors.muted),
                     ),
                   ),
                   SizedBox(
@@ -1134,7 +1130,7 @@ class _TrackRow extends StatelessWidget {
                       entry.isDirectory
                           ? '—'
                           : '${entry.extension.toUpperCase()} · ${(entry.size / 1048576).toStringAsFixed(1)} MB',
-                      style: const TextStyle(color: _muted, fontSize: 12),
+                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
                     ),
                   ),
                   SizedBox(
@@ -1197,7 +1193,7 @@ class _TrackDetails extends StatelessWidget {
       if (metadata.trackNumber != null) '曲目': '${metadata.trackNumber}',
       if (metadata.discNumber != null) '唱片': '${metadata.discNumber}',
       if (metadata.genres.isNotEmpty) '流派': metadata.genres.join('、'),
-      if (metadata.duration != null) '时长': _durationText(metadata.duration!),
+      if (metadata.duration != null) '时长': formatDuration(metadata.duration!),
       if (metadata.sampleRate != null)
         '采样率': '${metadata.sampleRate! ~/ 1000} kHz',
       if (metadata.bitDepth != null) '位深': '${metadata.bitDepth} bit',
@@ -1237,7 +1233,7 @@ class _TrackDetails extends StatelessWidget {
                         width: 84,
                         child: Text(
                           row.key,
-                          style: const TextStyle(color: _muted),
+                          style: const TextStyle(color: AppColors.muted),
                         ),
                       ),
                       Expanded(child: Text(row.value)),
@@ -1258,12 +1254,6 @@ class _TrackDetails extends StatelessWidget {
   }
 }
 
-String _durationText(Duration duration) {
-  final minutes = duration.inMinutes;
-  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return '$minutes:$seconds';
-}
-
 class PlayerBar extends StatelessWidget {
   const PlayerBar({super.key, required this.controller});
   final PlayerController controller;
@@ -1277,8 +1267,8 @@ class PlayerBar extends StatelessWidget {
       constraints: BoxConstraints(minHeight: narrow ? 64 : 180),
       padding: EdgeInsets.fromLTRB(18, narrow ? 8 : 10, 18, narrow ? 8 : 12),
       decoration: const BoxDecoration(
-        color: Color(0xff111814),
-        border: Border(top: BorderSide(color: _divider)),
+        color: AppColors.sidebar,
+        border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1388,12 +1378,12 @@ class _NowPlayingInfo extends StatelessWidget {
                 ? Container(
                     width: coverSize,
                     height: coverSize,
-                    color: _surfaceRaised,
+                    color: AppColors.surfaceRaised,
                     alignment: Alignment.center,
                     child: Icon(
                       Icons.album_rounded,
                       size: compact ? 22 : 32,
-                      color: _muted,
+                      color: AppColors.muted,
                     ),
                   )
                 : Image.memory(
@@ -1403,12 +1393,12 @@ class _NowPlayingInfo extends StatelessWidget {
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) => Container(
-                      color: _surfaceRaised,
+                      color: AppColors.surfaceRaised,
                       alignment: Alignment.center,
                       child: Icon(
                         Icons.album_rounded,
                         size: compact ? 22 : 32,
-                        color: _muted,
+                        color: AppColors.muted,
                       ),
                     ),
                   ),
@@ -1421,7 +1411,7 @@ class _NowPlayingInfo extends StatelessWidget {
               children: [
                 Text(
                   metadata?.displayTitle(current.name) ??
-                      _cleanTitle(current.name),
+                      stripExtension(current.name),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1435,20 +1425,20 @@ class _NowPlayingInfo extends StatelessWidget {
                     _artistAlbum(metadata),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _muted, fontSize: 12),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
                 ],
                 Text(
                   '${current.extension.toUpperCase()} · 原文件',
-                  style: const TextStyle(color: _accent, fontSize: 12),
+                  style: const TextStyle(color: AppColors.accent, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   controller.source?.label ?? '本地音乐',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: _muted, fontSize: 12),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
               ],
             ),
@@ -1485,8 +1475,8 @@ class _PlaybackControls extends StatelessWidget {
             ? null
             : controller.toggle,
         style: IconButton.styleFrom(
-          backgroundColor: _accent,
-          foregroundColor: _background,
+          backgroundColor: AppColors.accent,
+          foregroundColor: AppColors.background,
           minimumSize: const Size(46, 46),
         ),
         icon: Icon(
@@ -1517,16 +1507,11 @@ class _PlaybackControls extends StatelessWidget {
               : Icons.repeat_rounded,
           color: controller.player.loopMode == LoopMode.off
               ? Colors.white38
-              : _accent,
+              : AppColors.accent,
         ),
       ),
     ],
   );
-}
-
-String _cleanTitle(String name) {
-  final dot = name.lastIndexOf('.');
-  return dot > 0 ? name.substring(0, dot) : name;
 }
 
 class ConnectionDialog extends StatefulWidget {

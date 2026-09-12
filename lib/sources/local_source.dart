@@ -30,9 +30,11 @@ class LocalSource implements MusicSource {
         throw const FileSystemException('文件超出所选目录');
       }
       return resolved;
-    } catch (_) {
-      // iOS 安全范围路径回退：不做符号链接解析，直接使用拼接路径。
-      return joined;
+    } on FileSystemException {
+      // 仅 iOS 安全范围 URL 回退：不做符号链接解析，直接使用拼接路径。
+      // 其他平台解析失败一律上抛，避免绕过目录边界检查。
+      if (Platform.isIOS) return joined;
+      rethrow;
     }
   }
 
@@ -78,10 +80,9 @@ class LocalSource implements MusicSource {
     required int maxBytes,
   }) async {
     final audioPath = await _resolve(entry.path);
-    final wanted = '${p.basenameWithoutExtension(audioPath)}$extension';
     await for (final candidate in Directory(p.dirname(audioPath)).list()) {
       if (candidate is! File ||
-          p.basename(candidate.path).toLowerCase() != wanted.toLowerCase()) {
+          !isSidecarName(p.basename(candidate.path), audioPath, extension)) {
         continue;
       }
       final size = await candidate.length();
@@ -100,10 +101,6 @@ class LocalSource implements MusicSource {
     String extension,
     Uint8List bytes,
   ) async {
-    final audioPath = await _resolve(entry.path);
-    final dir = p.dirname(audioPath);
-    final base = p.basenameWithoutExtension(audioPath);
-    final target = p.join(dir, '$base.$extension');
-    await File(target).writeAsBytes(bytes, flush: true);
+    await writeSidecarFile(await _resolve(entry.path), extension, bytes);
   }
 }

@@ -86,11 +86,10 @@ class SmbSource implements MusicSource {
     final parent = p.posix.dirname(entry.path) == '.'
         ? ''
         : p.posix.dirname(entry.path);
-    final wanted = '${p.basenameWithoutExtension(entry.name)}$extension';
     final entries = await _pool.listDirectory(parent);
     for (final candidate in entries) {
       if (!candidate.isFile ||
-          candidate.name.toLowerCase() != wanted.toLowerCase()) {
+          !isSidecarName(candidate.name, entry.name, extension)) {
         continue;
       }
       if (candidate.size > maxBytes) {

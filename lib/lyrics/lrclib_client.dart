@@ -26,9 +26,9 @@ class LrclibClient {
   }) async {
     final params = <String, String>{
       'track_name': trackName,
-      if (artistName != null) 'artist_name': artistName,
-      if (albumName != null) 'album_name': albumName,
-      if (duration != null) 'duration': duration.inSeconds.toString(),
+      'artist_name': ?artistName,
+      'album_name': ?albumName,
+      'duration': ?duration?.inSeconds.toString(),
     };
     final uri = Uri.parse('$baseUrl/api/get').replace(queryParameters: params);
     final data = await _get(uri);
@@ -46,10 +46,10 @@ class LrclibClient {
     String? query,
   }) async {
     final params = <String, String>{
-      if (trackName != null) 'track_name': trackName,
-      if (artistName != null) 'artist_name': artistName,
-      if (albumName != null) 'album_name': albumName,
-      if (query != null) 'q': query,
+      'track_name': ?trackName,
+      'artist_name': ?artistName,
+      'album_name': ?albumName,
+      'q': ?query,
     };
     final uri = Uri.parse('$baseUrl/api/search').replace(queryParameters: params);
     final data = await _get(uri);
@@ -122,10 +122,6 @@ class LrclibLyrics {
       (syncedLyrics == null || syncedLyrics!.trim().isEmpty);
 
   bool get hasSynced => syncedLyrics != null && syncedLyrics!.trim().isNotEmpty;
-
-  String get displayTitle =>
-      name ??
-      (artistName != null ? '$artistName - ${albumName ?? ''}' : '未知歌曲');
 }
 
 class LrclibException implements Exception {

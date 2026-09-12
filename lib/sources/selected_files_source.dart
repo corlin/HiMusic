@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
-import 'package:path/path.dart' as p;
 
 import 'music_source.dart';
 
@@ -55,7 +54,7 @@ class SelectedFilesSource implements MusicSource {
     String extension, {
     required int maxBytes,
   }) async {
-    final wanted = '${p.basenameWithoutExtension(entry.name)}$extension';
+    final wanted = sidecarNameFor(entry.name, extension);
     for (final file in _files) {
       if (file.name.toLowerCase() != wanted.toLowerCase()) continue;
       final size = await file.length();
@@ -78,10 +77,6 @@ class SelectedFilesSource implements MusicSource {
     if (index == null || index < 0 || index >= _files.length) {
       throw const FileSystemException('无效文件索引');
     }
-    final audioPath = _files[index].path;
-    final dir = p.dirname(audioPath);
-    final base = p.basenameWithoutExtension(_files[index].name);
-    final target = p.join(dir, '$base.$extension');
-    await File(target).writeAsBytes(bytes, flush: true);
+    await writeSidecarFile(_files[index].path, extension, bytes);
   }
 }

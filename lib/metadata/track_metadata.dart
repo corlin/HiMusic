@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:metadata_audio/metadata_audio.dart' as audio;
 
+import '../util/format.dart';
+
 class TrackMetadata {
   const TrackMetadata({
     this.title,
@@ -123,8 +125,7 @@ class TrackMetadata {
 
   String displayTitle(String fileName) {
     if (title != null && title!.trim().isNotEmpty) return title!.trim();
-    final dot = fileName.lastIndexOf('.');
-    return dot > 0 ? fileName.substring(0, dot) : fileName;
+    return stripExtension(fileName);
   }
 
   String? get artistLine => performers.isEmpty ? null : performers.join('、');

@@ -64,7 +64,6 @@ class LrcParser {
       return LyricsDocument(
         source: LyricsSource.sidecarLrc,
         lines: List.unmodifiable(timed.map((item) => item.line)),
-        offset: Duration(milliseconds: offsetMs),
       );
     }
     final plainText = _trimBlankEdges(plain).join('\n');
@@ -74,7 +73,6 @@ class LrcParser {
     return LyricsDocument(
       source: LyricsSource.sidecarLrc,
       plainText: plainText,
-      offset: Duration(milliseconds: offsetMs),
     );
   }
 

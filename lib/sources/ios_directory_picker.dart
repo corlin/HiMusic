@@ -16,7 +16,4 @@ class IosDirectoryPicker {
   /// 没有保存过或恢复失败时返回 null。
   Future<String?> restoreDirectory() =>
       _channel.invokeMethod<String>('restoreDirectory');
-
-  /// 清除保存的目录授权。
-  Future<void> clearDirectory() => _channel.invokeMethod('clearDirectory');
 }

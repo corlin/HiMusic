@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 
 import '../metadata/track_metadata.dart';
+import '../theme.dart';
+import '../util/format.dart';
 import 'lrclib_client.dart';
 import 'lyrics_controller.dart';
 import 'lyrics_document.dart';
@@ -250,7 +252,7 @@ class _LyricsViewState extends State<LyricsView> {
               return Semantics(
                 label: active
                     ? '当前歌词：${line.text}'
-                    : '跳转到 ${_time(line.timestamp)}',
+                    : '跳转到 ${formatDuration(line.timestamp)}',
                 button: true,
                 excludeSemantics: true,
                 child: InkWell(
@@ -265,9 +267,7 @@ class _LyricsViewState extends State<LyricsView> {
                       style: TextStyle(
                         fontSize: active ? 23 : 17,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-                        color: active
-                            ? const Color(0xffb7d89c)
-                            : Colors.white54,
+                        color: active ? AppColors.accent : Colors.white54,
                       ),
                     ),
                   ),
@@ -312,6 +312,3 @@ class _Message extends StatelessWidget {
     ),
   );
 }
-
-String _time(Duration value) =>
-    '${value.inMinutes}:${value.inSeconds.remainder(60).toString().padLeft(2, '0')}';

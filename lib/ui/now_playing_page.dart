@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../lyrics/lyrics_view.dart';
 import '../metadata/track_metadata.dart';
 import '../playback/player_controller.dart';
+import '../theme.dart';
+import '../util/format.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({
@@ -43,9 +45,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       final meta = widget.controller.metadata.metadataFor(entry);
                       if (meta != null) return meta;
                       // 元数据尚未扫描完成，用文件名构造基本信息
-                      final dot = entry.name.lastIndexOf('.');
-                      final title = dot > 0 ? entry.name.substring(0, dot) : entry.name;
-                      return TrackMetadata(title: title);
+                      return TrackMetadata(title: stripExtension(entry.name));
                     },
                   );
                   final details = _ArtworkDetails(
@@ -111,7 +111,7 @@ class _ArtworkDetails extends StatelessWidget {
                 ? Container(
                     width: 280,
                     height: 280,
-                    color: const Color(0xff1a211d),
+                    color: AppColors.field,
                     child: const Icon(
                       Icons.album_rounded,
                       size: 110,
@@ -127,7 +127,7 @@ class _ArtworkDetails extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            metadata?.displayTitle(entryName) ?? _clean(entryName),
+            metadata?.displayTitle(entryName) ?? stripExtension(entryName),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall
                 ?.copyWith(fontWeight: FontWeight.w700),
@@ -150,9 +150,4 @@ class _ArtworkDetails extends StatelessWidget {
       ),
     ),
   );
-}
-
-String _clean(String name) {
-  final dot = name.lastIndexOf('.');
-  return dot > 0 ? name.substring(0, dot) : name;
 }

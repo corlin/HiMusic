@@ -12,13 +12,11 @@ class LyricsDocument {
     required this.source,
     this.lines = const [],
     this.plainText,
-    this.offset = Duration.zero,
   });
 
   final LyricsSource source;
   final List<TimedLyricLine> lines;
   final String? plainText;
-  final Duration offset;
 
   bool get hasTimedLines => lines.isNotEmpty;
 }
