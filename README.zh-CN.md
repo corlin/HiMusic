@@ -6,7 +6,7 @@
 
 HiMusic 把连接在家庭路由器上的 USB 硬盘变成全家可用的私人音乐库。它通过 SMB 直接读取音乐，播放 FLAC 等本地音频，不要求购买 NAS，也不依赖云账号或常开媒体服务器。
 
-![HiMusic macOS 资料库与高解析波形界面](artifacts/design-qa/implementation-option-1.png)
+![HiMusic macOS 资料库与高解析波形界面](docs/screenshots/implementation-option-1.png)
 
 ## 一份曲库，覆盖每块屏幕
 

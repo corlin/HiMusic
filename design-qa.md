@@ -3,7 +3,7 @@
 ## 验收输入
 
 - 设计基准：`artifacts/design-qa/source-option-1-normalized.png`（选定视觉稿的仓库内归一化副本）
-- 实现截图：`artifacts/design-qa/implementation-option-1.png`
+- 实现截图：`docs/screenshots/implementation-option-1.png`
 - 整体并排对照：`artifacts/design-qa/comparison-full.png`
 - 播放器局部对照：`artifacts/design-qa/comparison-player.png`
 - 视口：1440 × 1024，设备像素比 1.0

@@ -6,7 +6,7 @@
 
 HiMusic turns the USB drive attached to your home router into a private family music library. It connects directly through SMB, plays FLAC and other local audio files, and does not require a NAS, cloud account, or always-on media server.
 
-![HiMusic library and high-resolution waveform on macOS](artifacts/design-qa/implementation-option-1.png)
+![HiMusic library and high-resolution waveform on macOS](docs/screenshots/implementation-option-1.png)
 
 ## One library, every screen
 
