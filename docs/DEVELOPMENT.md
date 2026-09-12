@@ -129,3 +129,13 @@ uv pip install --python .tooling/smb-test-venv/bin/python impacket==0.13.1
 - 顺手修复既有宽屏隐患：侧栏品牌行在窄容器下文本无法收缩（测试字体下溢出 4.8 px），品牌行文本改为可收缩省略，TopBar 宽版品牌改用 Expanded 承接。
 - `flutter analyze` 无问题（排除未跟踪的联网调试测试）；完整测试 67 项通过（原 54 + 排序 9 + 分区/表头组件 4）；macOS Debug 构建与启动冒烟通过。
 - 0.5.0 规划文档：`docs/superpowers/specs/2026-09-11-metadata-queue-background-design.md` 与 `docs/superpowers/plans/2026-09-11-metadata-queue-background.md`（含 0.6.0 队列/播放模式与 0.7.0 后台播放的多端全做决策）。
+
+## 0.6.0 播放队列与播放模式（2026-09-11）
+
+- **随机播放**：走 just_audio 原生 shuffle（`shuffleModeEnabled`，Dart 侧 shuffleOrder 语义，一轮内不重复）；macOS/iOS/Android/TV 用 just_audio 默认后端语义可靠，Windows 的 media_kit 后端将 shuffle 委托原生（行为差异已知，未承诺特殊处理）。`PlayerController.toggleShuffle()` 乐观更新状态、不中断当前曲目；`shuffleModeEnabledStream` 与外部变化双向同步。
+- **队列管理与入口**：`playEntry` 重构为共享的 `_startQueue`（按目录构建队列+随机/顺序起播），新增 `playAll({shuffle})`（目录"播放全部/随机播放"入口，宽屏标题行，无音频时禁用）、`playAt(index)`（队列页点击跳转）、`removeFromQueue(index)`（移除后按 `lib/util/queue_math.dart` 的 `mapIndexAfterRemoval` 映射播放位置；移除当前曲目顺延播原下一首，列表清空则停止；保留当前曲目位置与进度）。
+- **侧栏"播放列表"落地为队列页**：高亮播放中曲目、点击跳转、逐条移除、空队列空态引导；替换原占位 snackbar。
+- **播放模式 UI**：底部播放栏在循环按钮旁新增随机开关（高亮/置灰随 `shuffleEnabled`，tooltip 双态文案）。
+- 测试：新增 `test/queue_math_test.dart`（移除索引映射 5 项）与 `test/queue_view_test.dart`（空态/条目渲染/移除不崩溃/播放入口启用禁用 4 项），全量 76 项通过；`flutter analyze` 无问题（排除未跟踪联网调试文件）；macOS Debug 构建与启动冒烟通过。
+- 随机切换、队列跳转/移除的播放器级行为（依赖真实音频平台）待 P0 真机验收：iOS corlin17mx 与 Android TV MiTV。
+- 版本 0.6.0+1。

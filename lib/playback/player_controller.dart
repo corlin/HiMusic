@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -8,6 +9,7 @@ import '../lyrics/lyrics_document.dart';
 import '../metadata/metadata_index.dart';
 import '../sources/music_source.dart';
 import '../sources/smb_source.dart';
+import '../util/queue_math.dart';
 import 'audio_bridge.dart';
 import '../waveform/waveform_controller.dart';
 
@@ -31,6 +33,7 @@ class PlayerController extends ChangeNotifier {
   String directory = '';
   List<MusicEntry> entries = [];
   List<MusicEntry> queue = [];
+  bool shuffleEnabled = false;
   String? error;
   bool busy = false;
   bool _disposed = false;
@@ -55,6 +58,14 @@ class PlayerController extends ChangeNotifier {
     lyrics.addListener(_changed);
     _subscriptions.add(player.volumeStream.listen((_) => _changed()));
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
+    _subscriptions.add(
+      player.shuffleModeEnabledStream.listen((value) {
+        if (value != shuffleEnabled) {
+          shuffleEnabled = value;
+          _changed();
+        }
+      }),
+    );
     _subscriptions.add(
       player.currentIndexStream.listen((_) {
         _syncWaveform();
@@ -149,22 +160,99 @@ class PlayerController extends ChangeNotifier {
         : '',
   );
 
-  Future<void> playEntry(MusicEntry entry) => run(() async {
+  Future<void> playEntry(MusicEntry entry) => _playQueue(
+    initialIndex: queue.indexOf(entry),
+    shuffle: shuffleEnabled,
+  );
+
+  /// 播放当前目录全部音频；[shuffle] 为 true 时开启随机并随机起播。
+  Future<void> playAll({bool shuffle = false}) => run(() async {
+    final audio = entries.where((e) => e.isAudio).toList();
+    if (audio.isEmpty) return;
+    await _startQueue(
+      audio,
+      initialIndex: shuffle ? Random().nextInt(audio.length) : 0,
+      shuffle: shuffle,
+    );
+  });
+
+  Future<void> _playQueue({
+    required int initialIndex,
+    required bool shuffle,
+  }) => run(() async {
+    await _startQueue(
+      entries.where((e) => e.isAudio).toList(),
+      initialIndex: initialIndex,
+      shuffle: shuffle,
+    );
+  });
+
+  Future<void> _startQueue(
+    List<MusicEntry> audio, {
+    required int initialIndex,
+    required bool shuffle,
+  }) async {
     await player.stop();
     await _bridge?.close();
     _bridge = await AudioBridge.start(source!);
-    queue = entries.where((e) => e.isAudio).toList();
+    queue = audio;
     _audioSources = queue
         .map((e) => AudioSource.uri(_bridge!.register(e)))
         .toList();
-    await player.setAudioSources(
-      _audioSources,
-      initialIndex: queue.indexOf(entry),
-    );
+    final start = audio.isEmpty
+        ? 0
+        : initialIndex.clamp(0, _audioSources.length - 1);
+    await player.setAudioSources(_audioSources, initialIndex: start);
+    shuffleEnabled = shuffle;
+    await player.setShuffleModeEnabled(shuffle);
+    _syncWaveform();
+    _syncLyrics();
+    unawaited(_play());
+  }
+
+  /// 跳到队列指定位置并开始播放。
+  Future<void> playAt(int index) => run(() async {
+    if (index < 0 || index >= queue.length) return;
+    await player.seek(Duration.zero, index: index);
     _syncWaveform();
     _syncLyrics();
     unawaited(_play());
   });
+
+  /// 从队列移除一条；若移除的是当前曲目，则顺延播放原下一首。
+  Future<void> removeFromQueue(int index) => run(() async {
+    if (index < 0 || index >= queue.length) return;
+    final currentIndex = player.currentIndex;
+    final wasPlaying = player.playing;
+    final position = player.position;
+    final keepPosition = currentIndex != null && currentIndex < index;
+    queue.removeAt(index);
+    _audioSources.removeAt(index);
+    if (_audioSources.isEmpty) {
+      await player.stop();
+      return;
+    }
+    final newCurrent = mapIndexAfterRemoval(index, currentIndex);
+    await player.setAudioSources(
+      _audioSources,
+      initialIndex: newCurrent ?? 0,
+      initialPosition: keepPosition ? position : Duration.zero,
+    );
+    if (wasPlaying && newCurrent != null) unawaited(_play());
+  });
+
+  /// 切换随机播放：仅改变播放模式，不中断当前曲目。
+  Future<void> toggleShuffle() => run(() async {
+    final next = !shuffleEnabled;
+    shuffleEnabled = next;
+    _changed();
+    try {
+      await player.setShuffleModeEnabled(next);
+    } catch (_) {
+      // 个别后端不支持时保持状态，播放器按当前顺序播放。
+    }
+  });
+
   Future<void> _play() async {
     if (_disposed) return;
     _wantsPlayback = true;

@@ -195,10 +195,6 @@ class _LibraryPageState extends State<LibraryPage> {
         _artistFilter = null;
       }
     });
-    if (next == '播放列表') {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('播放列表将在播放队列功能完成后开放')));
-    }
   }
 
   @override
@@ -565,6 +561,7 @@ class _LibraryContent extends StatelessWidget {
                     controller: controller,
                     onOpen: onOpenArtist,
                   ),
+                '播放列表' => _QueueView(controller: controller),
                 _ => _ConnectedLibrary(
                     controller: controller,
                     query: searchController.text,
@@ -924,7 +921,26 @@ class _ConnectedLibrary extends StatelessWidget {
                             ],
                           ),
                   ),
-                  if (!narrow)
+                  if (!narrow) ...[
+                    TextButton.icon(
+                      onPressed: controller.busy ||
+                              !controller.entries.any((e) => e.isAudio)
+                          ? null
+                          : () => controller.playAll(),
+                      icon: const Icon(
+                        Icons.play_circle_outline_rounded,
+                        size: 17,
+                      ),
+                      label: const Text('播放全部'),
+                    ),
+                    TextButton.icon(
+                      onPressed: controller.busy ||
+                              !controller.entries.any((e) => e.isAudio)
+                          ? null
+                          : () => controller.playAll(shuffle: true),
+                      icon: const Icon(Icons.shuffle_rounded, size: 17),
+                      label: const Text('随机播放'),
+                    ),
                     TextButton.icon(
                       onPressed: controller.busy
                           ? null
@@ -932,6 +948,7 @@ class _ConnectedLibrary extends StatelessWidget {
                       icon: const Icon(Icons.sync_rounded, size: 17),
                       label: const Text('同步'),
                     ),
+                  ],
                 ],
               ),
               if (albumFilter != null || artistFilter != null) ...[
@@ -1250,6 +1267,98 @@ String? _firstArtist(List<MusicEntry> entries, PlayerController controller) {
     if (line != null && line.isNotEmpty) return line;
   }
   return null;
+}
+
+class _QueueView extends StatelessWidget {
+  const _QueueView({required this.controller});
+
+  final PlayerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final queue = controller.queue;
+    final current = controller.current;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 18, 28, 10),
+          child: Text(
+            '播放队列 · ${queue.length}',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Expanded(
+          child: queue.isEmpty
+              ? const Center(
+                  child: Text(
+                    '当前队列为空\n在音乐目录选择一首歌，或点击「播放全部」',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.muted),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 12),
+                  itemCount: queue.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final entry = queue[index];
+                    final metadata = controller.metadata.metadataFor(entry);
+                    final selected = current?.path == entry.path;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                      ),
+                      leading: Icon(
+                        selected
+                            ? Icons.graphic_eq_rounded
+                            : Icons.music_note_rounded,
+                        size: 20,
+                        color: selected ? AppColors.accent : AppColors.muted,
+                      ),
+                      title: Text(
+                        metadata?.displayTitle(entry.name) ??
+                            stripExtension(entry.name),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected ? AppColors.accent : Colors.white,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                      subtitle: Text(
+                        metadata?.artistLine ??
+                            '${entry.extension.toUpperCase()} · 原文件',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: IconButton(
+                        tooltip: '从队列移除',
+                        onPressed: controller.busy
+                            ? null
+                            : () => controller.removeFromQueue(index),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      onTap: controller.busy
+                          ? null
+                          : () => controller.playAt(index),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class _AlbumShelf extends StatelessWidget {
@@ -1966,6 +2075,14 @@ class _PlaybackControls extends StatelessWidget {
             ? null
             : () => controller.skip(true),
         icon: const Icon(Icons.skip_next_rounded),
+      ),
+      IconButton(
+        tooltip: controller.shuffleEnabled ? '随机播放 · 点击关闭' : '顺序播放 · 点击开启随机',
+        onPressed: controller.busy ? null : controller.toggleShuffle,
+        icon: Icon(
+          Icons.shuffle_rounded,
+          color: controller.shuffleEnabled ? AppColors.accent : Colors.white38,
+        ),
       ),
       IconButton(
         tooltip: switch (controller.player.loopMode) {
