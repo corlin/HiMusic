@@ -164,9 +164,8 @@ class _LibraryPageState extends State<LibraryPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法打开本地音乐：$e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('无法打开本地音乐：$e')));
       }
     }
   }
@@ -211,12 +210,18 @@ class _LibraryPageState extends State<LibraryPage> {
           key: const Key('library-capture-boundary'),
           child: Scaffold(
             backgroundColor: AppColors.background,
-            body: LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 980;
-                return SafeArea(
-                  bottom: false,
-                  child: Column(
+            body: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 980;
+                  final rail =
+                      !wide &&
+                      constraints.maxWidth >= 620 &&
+                      constraints.maxHeight >= 600;
+                  final denseHeader =
+                      constraints.maxWidth > constraints.maxHeight &&
+                      constraints.maxHeight < 520;
+                  return Column(
                     children: [
                       Expanded(
                         child: Row(
@@ -229,12 +234,23 @@ class _LibraryPageState extends State<LibraryPage> {
                                 onSmb: addSmb,
                                 onLocal: addLocal,
                               ),
+                            if (rail)
+                              _LibraryRail(
+                                section: section,
+                                busy: c.busy,
+                                onSection: chooseSection,
+                                onSmb: addSmb,
+                                onLocal: addLocal,
+                              ),
                             Expanded(
                               child: _LibraryContent(
                                 controller: c,
                                 searchController: searchController,
                                 tvMode: tvMode,
-                                showCompactHeader: !wide,
+                                showCompactHeader: !wide && !rail,
+                                denseHeader: denseHeader,
+                                showCompactSections: !wide && !rail,
+                                onSection: chooseSection,
                                 onSmb: addSmb,
                                 onLocal: addLocal,
                                 onTvMode: () =>
@@ -256,14 +272,112 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                       PlayerBar(controller: c),
                     ],
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),
       );
     },
+  );
+}
+
+const _librarySections = [
+  ('音乐', Icons.music_note_rounded),
+  ('专辑', Icons.album_outlined),
+  ('艺术家', Icons.person_outline_rounded),
+  ('文件夹', Icons.folder_outlined),
+  ('播放列表', Icons.queue_music_rounded),
+];
+
+class _LibraryRail extends StatelessWidget {
+  const _LibraryRail({
+    required this.section,
+    required this.busy,
+    required this.onSection,
+    required this.onSmb,
+    required this.onLocal,
+  });
+
+  final String section;
+  final bool busy;
+  final ValueChanged<String> onSection;
+  final VoidCallback onSmb;
+  final VoidCallback onLocal;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('library-navigation-rail'),
+    width: 76,
+    decoration: const BoxDecoration(
+      color: AppColors.sidebar,
+      border: Border(right: BorderSide(color: AppColors.divider)),
+    ),
+    child: Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 14),
+          child: Icon(Icons.library_music_rounded, color: AppColors.accent),
+        ),
+        for (final item in _librarySections)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: IconButton(
+              tooltip: item.$1,
+              isSelected: section == item.$1,
+              style: IconButton.styleFrom(
+                foregroundColor: section == item.$1
+                    ? AppColors.background
+                    : Colors.white70,
+                backgroundColor: section == item.$1
+                    ? AppColors.accent
+                    : Colors.transparent,
+              ),
+              onPressed: () => onSection(item.$1),
+              icon: Icon(item.$2),
+            ),
+          ),
+        const Spacer(),
+        IconButton(
+          tooltip: '选择本地音乐',
+          onPressed: busy ? null : onLocal,
+          icon: const Icon(Icons.folder_open_rounded),
+        ),
+        IconButton(
+          tooltip: '连接共享硬盘',
+          onPressed: busy ? null : onSmb,
+          icon: const Icon(Icons.add_link_rounded),
+        ),
+        const SizedBox(height: 12),
+      ],
+    ),
+  );
+}
+
+class _CompactSections extends StatelessWidget {
+  const _CompactSections({required this.section, required this.onSection});
+  final String section;
+  final ValueChanged<String> onSection;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    key: const Key('compact-library-sections'),
+    height: 52,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      itemCount: _librarySections.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final item = _librarySections[index];
+        return ChoiceChip(
+          label: Text(item.$1),
+          selected: section == item.$1,
+          onSelected: (_) => onSection(item.$1),
+        );
+      },
+    ),
   );
 }
 
@@ -296,13 +410,7 @@ class _Sidebar extends StatelessWidget {
         children: [
           const _Brand(),
           const SizedBox(height: 26),
-          for (final item in const [
-            ('音乐', Icons.music_note_rounded),
-            ('专辑', Icons.album_outlined),
-            ('艺术家', Icons.person_outline_rounded),
-            ('文件夹', Icons.folder_outlined),
-            ('播放列表', Icons.queue_music_rounded),
-          ])
+          for (final item in _librarySections)
             _NavigationItem(
               label: item.$1,
               icon: item.$2,
@@ -353,13 +461,19 @@ class _Brand extends StatelessWidget {
     children: [
       DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.fromBorderSide(BorderSide(color: AppColors.accent, width: 1.5)),
+          border: Border.fromBorderSide(
+            BorderSide(color: AppColors.accent, width: 1.5),
+          ),
           borderRadius: BorderRadius.all(Radius.circular(9)),
         ),
         child: SizedBox(
           width: 36,
           height: 36,
-          child: Icon(Icons.library_music_rounded, color: AppColors.accent, size: 22),
+          child: Icon(
+            Icons.library_music_rounded,
+            color: AppColors.accent,
+            size: 22,
+          ),
         ),
       ),
       SizedBox(width: 12),
@@ -464,7 +578,11 @@ class _SourceItem extends StatelessWidget {
         child: Row(
           children: [
             const SizedBox(width: 13),
-            Icon(icon, size: 19, color: active ? AppColors.accent : Colors.white60),
+            Icon(
+              icon,
+              size: 19,
+              color: active ? AppColors.accent : Colors.white60,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -497,6 +615,9 @@ class _LibraryContent extends StatelessWidget {
     required this.searchController,
     required this.tvMode,
     required this.showCompactHeader,
+    required this.denseHeader,
+    required this.showCompactSections,
+    required this.onSection,
     required this.onSmb,
     required this.onLocal,
     required this.onTvMode,
@@ -516,6 +637,9 @@ class _LibraryContent extends StatelessWidget {
   final TextEditingController searchController;
   final bool tvMode;
   final bool showCompactHeader;
+  final bool denseHeader;
+  final bool showCompactSections;
+  final ValueChanged<String> onSection;
   final VoidCallback onSmb;
   final VoidCallback onLocal;
   final VoidCallback onTvMode;
@@ -537,12 +661,15 @@ class _LibraryContent extends StatelessWidget {
         controller: controller,
         searchController: searchController,
         showBrand: showCompactHeader,
+        dense: denseHeader,
         onLocal: onLocal,
         tvMode: tvMode,
         onSmb: onSmb,
         onTvMode: onTvMode,
         onSearch: onSearch,
       ),
+      if (showCompactSections && controller.source != null)
+        _CompactSections(section: section, onSection: onSection),
       if (controller.busy) const LinearProgressIndicator(minHeight: 2),
       if (controller.error != null)
         _ErrorBanner(controller: controller)
@@ -553,26 +680,27 @@ class _LibraryContent extends StatelessWidget {
             ? _Welcome(onSmb: onSmb, onLocal: onLocal)
             : switch (section) {
                 '专辑' => _AlbumSection(
-                    controller: controller,
-                    tvMode: tvMode,
-                    onOpen: onOpenAlbum,
-                  ),
+                  controller: controller,
+                  tvMode: tvMode,
+                  onOpen: onOpenAlbum,
+                ),
                 '艺术家' => _ArtistSection(
-                    controller: controller,
-                    onOpen: onOpenArtist,
-                  ),
+                  controller: controller,
+                  onOpen: onOpenArtist,
+                ),
                 '播放列表' => _QueueView(controller: controller),
                 _ => _ConnectedLibrary(
-                    controller: controller,
-                    query: searchController.text,
-                    tvMode: tvMode,
-                    sortField: sortField,
-                    sortAsc: sortAsc,
-                    onSort: onSort,
-                    albumFilter: albumFilter,
-                    artistFilter: artistFilter,
-                    onClearGroupFilter: onClearGroupFilter,
-                  ),
+                  controller: controller,
+                  query: searchController.text,
+                  tvMode: tvMode,
+                  onOpenAlbum: onOpenAlbum,
+                  sortField: sortField,
+                  sortAsc: sortAsc,
+                  onSort: onSort,
+                  albumFilter: albumFilter,
+                  artistFilter: artistFilter,
+                  onClearGroupFilter: onClearGroupFilter,
+                ),
               },
       ),
     ],
@@ -585,6 +713,7 @@ class _TopBar extends StatelessWidget {
     required this.controller,
     required this.searchController,
     required this.showBrand,
+    required this.dense,
     required this.tvMode,
     required this.onSmb,
     required this.onTvMode,
@@ -595,6 +724,7 @@ class _TopBar extends StatelessWidget {
   final PlayerController controller;
   final TextEditingController searchController;
   final bool showBrand;
+  final bool dense;
   final bool tvMode;
   final VoidCallback onSmb;
   final VoidCallback onTvMode;
@@ -621,27 +751,37 @@ class _TopBar extends StatelessWidget {
     builder: (context, constraints) {
       if (constraints.maxWidth < 700) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+          padding: EdgeInsets.fromLTRB(12, dense ? 4 : 8, 12, dense ? 4 : 10),
           child: Column(
             children: [
+              if (showBrand && !dense) ...[
+                Row(
+                  children: [
+                    const Expanded(child: _Brand()),
+                    IconButton(
+                      tooltip: '选择本地音乐',
+                      onPressed: controller.busy ? null : onLocal,
+                      icon: const Icon(Icons.folder_open_rounded),
+                    ),
+                    IconButton(
+                      tooltip: '连接共享硬盘',
+                      onPressed: controller.busy ? null : onSmb,
+                      icon: const Icon(Icons.add_link_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               Row(
                 children: [
-                  const Expanded(child: _Brand()),
-                  IconButton(
-                    tooltip: '选择本地音乐',
-                    onPressed: controller.busy ? null : onLocal,
-                    icon: const Icon(Icons.folder_open_rounded),
-                  ),
-                  IconButton(
-                    tooltip: '连接共享硬盘',
-                    onPressed: controller.busy ? null : onSmb,
-                    icon: const Icon(Icons.add_link_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
+                  if (showBrand && dense)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.library_music_rounded,
+                        color: AppColors.accent,
+                      ),
+                    ),
                   IconButton(
                     tooltip: '上一级',
                     onPressed: controller.busy || controller.directory.isEmpty
@@ -663,6 +803,18 @@ class _TopBar extends StatelessWidget {
                         : () => controller.browse(controller.directory),
                     icon: const Icon(Icons.refresh_rounded),
                   ),
+                  if (showBrand && dense) ...[
+                    IconButton(
+                      tooltip: '选择本地音乐',
+                      onPressed: controller.busy ? null : onLocal,
+                      icon: const Icon(Icons.folder_open_rounded),
+                    ),
+                    IconButton(
+                      tooltip: '连接共享硬盘',
+                      onPressed: controller.busy ? null : onSmb,
+                      icon: const Icon(Icons.add_link_rounded),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -755,54 +907,109 @@ class _Welcome extends StatelessWidget {
   final VoidCallback onLocal;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.library_music_rounded, size: 66, color: AppColors.accent),
-          const SizedBox(height: 24),
-          const Text(
-            '家里的音乐，随时听。',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 9),
-          const Text(
-            '连接共享硬盘，或选择本地音乐',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted),
-          ),
-          const SizedBox(height: 26),
-          FilledButton.icon(
-            autofocus: true,
-            onPressed: onSmb,
-            icon: const Icon(Icons.router_outlined),
-            label: const Text('连接 SMB 共享硬盘'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: OutlinedButton.icon(
-              onPressed: onLocal,
-              icon: const Icon(Icons.folder_open_rounded),
-              label: Text(
-                defaultTargetPlatform == TargetPlatform.macOS ||
-                        defaultTargetPlatform == TargetPlatform.windows ||
-                        defaultTargetPlatform == TargetPlatform.linux
-                    ? '打开本地目录'
-                    : '选择本地音乐',
-              ),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxHeight < 420) {
+        return Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.library_music_rounded,
+                  size: 40,
+                  color: AppColors.accent,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '家里的音乐，随时听。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '连接共享硬盘，或选择本地音乐',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.muted),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: onSmb,
+                      icon: const Icon(Icons.router_outlined),
+                      label: const Text('连接 SMB 共享硬盘'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: onLocal,
+                      icon: const Icon(Icons.folder_open_rounded),
+                      label: const Text('选择本地音乐'),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 18),
-          const Text(
-            '原文件播放 · 每台设备保留独立队列',
-            style: TextStyle(color: Colors.white38, fontSize: 12),
+        );
+      }
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.library_music_rounded,
+                size: 66,
+                color: AppColors.accent,
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                '家里的音乐，随时听。',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 9),
+              const Text(
+                '连接共享硬盘，或选择本地音乐',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.muted),
+              ),
+              const SizedBox(height: 26),
+              FilledButton.icon(
+                autofocus: true,
+                onPressed: onSmb,
+                icon: const Icon(Icons.router_outlined),
+                label: const Text('连接 SMB 共享硬盘'),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: OutlinedButton.icon(
+                  onPressed: onLocal,
+                  icon: const Icon(Icons.folder_open_rounded),
+                  label: Text(
+                    defaultTargetPlatform == TargetPlatform.macOS ||
+                            defaultTargetPlatform == TargetPlatform.windows ||
+                            defaultTargetPlatform == TargetPlatform.linux
+                        ? '打开本地目录'
+                        : '选择本地音乐',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                '原文件播放 · 每台设备保留独立队列',
+                style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
+        ),
+      );
+    },
   );
 }
 
@@ -811,6 +1018,7 @@ class _ConnectedLibrary extends StatelessWidget {
     required this.controller,
     required this.query,
     required this.tvMode,
+    required this.onOpenAlbum,
     required this.sortField,
     required this.sortAsc,
     required this.onSort,
@@ -822,6 +1030,7 @@ class _ConnectedLibrary extends StatelessWidget {
   final PlayerController controller;
   final String query;
   final bool tvMode;
+  final ValueChanged<String> onOpenAlbum;
   final TrackSortField? sortField;
   final bool sortAsc;
   final ValueChanged<TrackSortField> onSort;
@@ -847,6 +1056,7 @@ class _ConnectedLibrary extends StatelessWidget {
         (value) => value.toLowerCase().contains(normalized),
       );
     }).toList();
+    final browseAudio = filtered.where((entry) => entry.isAudio).toList();
     if (albumFilter != null || artistFilter != null) {
       filtered = filtered.where((entry) {
         if (entry.isDirectory) return false;
@@ -878,6 +1088,39 @@ class _ConnectedLibrary extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 700;
+        if (constraints.maxHeight < 250) {
+          if (filtered.isEmpty) {
+            return const Center(
+              child: Text(
+                '此目录暂无匹配的音乐或文件夹',
+                style: TextStyle(color: AppColors.muted),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            itemCount: filtered.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) => _TrackRow(
+              entry: filtered[index],
+              metadata: controller.metadata.metadataFor(filtered[index]),
+              index: index,
+              selected: controller.current?.path == filtered[index].path,
+              tvMode: tvMode,
+              onTap: controller.busy
+                  ? null
+                  : () => filtered[index].isDirectory
+                        ? controller.browse(filtered[index].path)
+                        : controller.playEntry(filtered[index]),
+            ),
+          );
+        }
+        final showShelf =
+            constraints.maxWidth >= 560 && constraints.maxHeight >= 620;
+        final portraitStage =
+            showShelf &&
+            constraints.maxWidth < 980 &&
+            constraints.maxHeight > constraints.maxWidth;
         return Padding(
           padding: EdgeInsets.fromLTRB(
             narrow ? 14 : 28,
@@ -916,14 +1159,18 @@ class _ConnectedLibrary extends StatelessWidget {
                                 '${controller.source!.label}${controller.directory.isEmpty ? '' : '  /  ${controller.directory}'}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
                   ),
                   if (!narrow) ...[
                     TextButton.icon(
-                      onPressed: controller.busy ||
+                      onPressed:
+                          controller.busy ||
                               !controller.entries.any((e) => e.isAudio)
                           ? null
                           : () => controller.playAll(),
@@ -934,7 +1181,8 @@ class _ConnectedLibrary extends StatelessWidget {
                       label: const Text('播放全部'),
                     ),
                     TextButton.icon(
-                      onPressed: controller.busy ||
+                      onPressed:
+                          controller.busy ||
                               !controller.entries.any((e) => e.isAudio)
                           ? null
                           : () => controller.playAll(shuffle: true),
@@ -991,63 +1239,119 @@ class _ConnectedLibrary extends StatelessWidget {
                   ),
                 ),
               ],
-              if (!narrow && audio.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                _AlbumShelf(entries: audio, controller: controller, tvMode: tvMode),
-                const SizedBox(height: 22),
+              if (portraitStage && browseAudio.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.album_rounded,
+                      size: 18,
+                      color: AppColors.accent,
+                    ),
+                    SizedBox(width: 8),
+                    Text('唱片翻阅', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Spacer(),
+                    Text(
+                      '点封面，在下方看曲目',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ],
-              if (narrow && audio.isNotEmpty) const SizedBox(height: 8),
+              if (showShelf && browseAudio.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _AlbumShelf(
+                  entries: portraitStage ? browseAudio : audio,
+                  controller: controller,
+                  tvMode: tvMode,
+                  selectedAlbum: portraitStage ? albumFilter : null,
+                  onOpenAlbum: portraitStage
+                      ? (album) => album == albumFilter
+                            ? onClearGroupFilter()
+                            : onOpenAlbum(album)
+                      : null,
+                ),
+                SizedBox(height: portraitStage ? 12 : 22),
+              ],
+              if (portraitStage && browseAudio.isNotEmpty)
+                Container(
+                  key: const Key('duo-track-deck'),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: AppColors.divider)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.queue_music_rounded,
+                        size: 18,
+                        color: AppColors.accent,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '曲目台',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${filtered.length} 首',
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              if (!showShelf && audio.isNotEmpty) const SizedBox(height: 8),
               _TableHeader(
                 hasEntries: filtered.isNotEmpty,
                 sortField: sortField,
                 sortAsc: sortAsc,
                 onSort: onSort,
               ),
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Text(
-                      normalized.isEmpty
-                          ? '此目录暂无支持的音乐文件或子目录'
-                          : '没有匹配的音乐或文件夹\n试试其他关键词，或清除搜索查看全部',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.muted),
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) => _TrackRow(
-                      entry: filtered[index],
-                      metadata: controller.metadata.metadataFor(
-                        filtered[index],
+              Expanded(
+                child: filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          normalized.isEmpty
+                              ? '此目录暂无支持的音乐文件或子目录'
+                              : '没有匹配的音乐或文件夹\n试试其他关键词，或清除搜索查看全部',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) => _TrackRow(
+                          entry: filtered[index],
+                          metadata: controller.metadata.metadataFor(
+                            filtered[index],
+                          ),
+                          index: index,
+                          selected:
+                              controller.current?.path == filtered[index].path,
+                          tvMode: tvMode,
+                          onTap: controller.busy
+                              ? null
+                              : () => filtered[index].isDirectory
+                                    ? controller.browse(filtered[index].path)
+                                    : controller.playEntry(filtered[index]),
+                        ),
                       ),
-                      index: index,
-                      selected:
-                          controller.current?.path == filtered[index].path,
-                      tvMode: tvMode,
-                      onTap: controller.busy
-                          ? null
-                          : () => filtered[index].isDirectory
-                                ? controller.browse(filtered[index].path)
-                                : controller.playEntry(filtered[index]),
-                    ),
-                  ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  normalized.isEmpty
+                      ? '${filtered.length} 项 · $metadataStatus'
+                      : '找到 ${filtered.length} 项 / 共 ${controller.entries.length} 项 · 只读访问',
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              normalized.isEmpty
-                  ? '${filtered.length} 项 · $metadataStatus'
-                  : '找到 ${filtered.length} 项 / 共 ${controller.entries.length} 项 · 只读访问',
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
-  },
-);
   }
 }
 
@@ -1068,16 +1372,16 @@ class _AlbumSection extends StatelessWidget {
     for (final entry in controller.entries.where((entry) => entry.isAudio)) {
       final album = controller.metadata.metadataFor(entry)?.album?.trim();
       albums
-          .putIfAbsent(album == null || album.isEmpty ? '未知专辑' : album, () => [])
+          .putIfAbsent(
+            album == null || album.isEmpty ? '未知专辑' : album,
+            () => [],
+          )
           .add(entry);
     }
     final names = albums.keys.toList()..sort();
     if (names.isEmpty) {
       return const Center(
-        child: Text(
-          '当前目录没有可浏览的音乐',
-          style: TextStyle(color: AppColors.muted),
-        ),
+        child: Text('当前目录没有可浏览的音乐', style: TextStyle(color: AppColors.muted)),
       );
     }
     final tileSize = tvMode ? 200.0 : 176.0;
@@ -1176,10 +1480,7 @@ class _AlbumBrowserTile extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              [
-                ?artist,
-                '${entries.length} 首',
-              ].join(' · '),
+              [?artist, '${entries.length} 首'].join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: AppColors.muted, fontSize: 12),
@@ -1192,10 +1493,7 @@ class _AlbumBrowserTile extends StatelessWidget {
 }
 
 class _ArtistSection extends StatelessWidget {
-  const _ArtistSection({
-    required this.controller,
-    required this.onOpen,
-  });
+  const _ArtistSection({required this.controller, required this.onOpen});
 
   final PlayerController controller;
   final ValueChanged<String> onOpen;
@@ -1212,10 +1510,7 @@ class _ArtistSection extends StatelessWidget {
     final names = artists.keys.toList()..sort();
     if (names.isEmpty) {
       return const Center(
-        child: Text(
-          '当前目录没有可浏览的音乐',
-          style: TextStyle(color: AppColors.muted),
-        ),
+        child: Text('当前目录没有可浏览的音乐', style: TextStyle(color: AppColors.muted)),
       );
     }
     return Column(
@@ -1306,9 +1601,7 @@ class _QueueView extends StatelessWidget {
                     final metadata = controller.metadata.metadataFor(entry);
                     final selected = current?.path == entry.path;
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                       leading: Icon(
                         selected
                             ? Icons.graphic_eq_rounded
@@ -1366,45 +1659,92 @@ class _AlbumShelf extends StatelessWidget {
     required this.entries,
     required this.controller,
     required this.tvMode,
+    this.onOpenAlbum,
+    this.selectedAlbum,
   });
 
   final List<MusicEntry> entries;
   final PlayerController controller;
   final bool tvMode;
+  final ValueChanged<String>? onOpenAlbum;
+  final String? selectedAlbum;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height:
-        (tvMode ? 148 : 120) + 12 + MediaQuery.textScalerOf(context).scale(36),
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: entries.length > 6 ? 6 : entries.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 14),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final metadata = controller.metadata.metadataFor(entry);
-        return _AlbumTile(
-          entry: entry,
-          metadata: metadata,
-          size: tvMode ? 148 : 120,
-          onTap: controller.busy ? null : () => controller.playEntry(entry),
-        );
-      },
+  Widget build(BuildContext context) {
+    final size = tvMode ? 148.0 : 120.0;
+    final tileHeight =
+        size +
+        7 +
+        _singleLineHeight(context, _albumTileTitleStyle) +
+        _singleLineHeight(context, _albumTileSubtitleStyle);
+    return SizedBox(
+      height: tileHeight,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: entries.length > 6 ? 6 : entries.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          final metadata = controller.metadata.metadataFor(entry);
+          return _AlbumTile(
+            key: Key('album-tile-${entry.path}'),
+            entry: entry,
+            metadata: metadata,
+            size: size,
+            selected:
+                metadata?.album?.trim() == selectedAlbum &&
+                selectedAlbum != null,
+            onTap: controller.busy
+                ? null
+                : () {
+                    final album = metadata?.album?.trim();
+                    if (onOpenAlbum != null &&
+                        album != null &&
+                        album.isNotEmpty) {
+                      onOpenAlbum!(album);
+                    } else {
+                      controller.playEntry(entry);
+                    }
+                  },
+          );
+        },
+      ),
+    );
+  }
+}
+
+const _albumTileTitleStyle = TextStyle(fontWeight: FontWeight.w500);
+const _albumTileSubtitleStyle = TextStyle(color: AppColors.muted, fontSize: 12);
+
+double _singleLineHeight(BuildContext context, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: 'Ag',
+      style: DefaultTextStyle.of(context).style.merge(style),
     ),
-  );
+    maxLines: 1,
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final height = painter.height;
+  painter.dispose();
+  return height;
 }
 
 class _AlbumTile extends StatelessWidget {
   const _AlbumTile({
+    super.key,
     required this.entry,
     required this.metadata,
     required this.size,
+    this.selected = false,
     required this.onTap,
   });
 
   final MusicEntry entry;
   final TrackMetadata? metadata;
   final double size;
+  final bool selected;
   final VoidCallback? onTap;
 
   @override
@@ -1416,50 +1756,67 @@ class _AlbumTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(7),
-            child: metadata?.artwork == null
-                ? Container(
-                    width: size,
-                    height: size,
-                    color: AppColors.surfaceRaised,
-                    alignment: Alignment.center,
-                    child: Icon(
-                      Icons.album_rounded,
-                      size: size * .36,
-                      color: AppColors.muted,
-                    ),
-                  )
-                : Image.memory(
-                    metadata!.artwork!,
-                    width: size,
-                    height: size,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.medium,
-                    gaplessPlayback: true,
-                    errorBuilder: (_, _, _) => Container(
-                      color: AppColors.surfaceRaised,
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.album_rounded,
-                        size: size * .36,
-                        color: AppColors.muted,
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: metadata?.artwork == null
+                    ? Container(
+                        width: size,
+                        height: size,
+                        color: AppColors.surfaceRaised,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.album_rounded,
+                          size: size * .36,
+                          color: AppColors.muted,
+                        ),
+                      )
+                    : Image.memory(
+                        metadata!.artwork!,
+                        width: size,
+                        height: size,
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.medium,
+                        gaplessPlayback: true,
+                        errorBuilder: (_, _, _) => Container(
+                          color: AppColors.surfaceRaised,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.album_rounded,
+                            size: size * .36,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ),
+              ),
+              if (selected)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: AppColors.accent, width: 3),
                       ),
                     ),
                   ),
+                ),
+            ],
           ),
           const SizedBox(height: 7),
           Text(
             metadata?.displayTitle(entry.name) ?? stripExtension(entry.name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w500),
+            style: _albumTileTitleStyle,
           ),
           Text(
             metadata?.artistLine ??
                 metadata?.album ??
                 entry.extension.toUpperCase(),
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _albumTileSubtitleStyle,
           ),
         ],
       ),
@@ -1531,19 +1888,13 @@ class _TableHeader extends StatelessWidget {
             width: 46,
             child: Text('#', style: const TextStyle(color: AppColors.muted)),
           ),
-          Expanded(
-            flex: 5,
-            child: _label('标题', field: TrackSortField.title),
-          ),
+          Expanded(flex: 5, child: _label('标题', field: TrackSortField.title)),
           if (width >= 700) ...[
             Expanded(
               flex: 2,
               child: _label('艺术家', field: TrackSortField.artist),
             ),
-            Expanded(
-              flex: 2,
-              child: _label('专辑', field: TrackSortField.album),
-            ),
+            Expanded(flex: 2, child: _label('专辑', field: TrackSortField.album)),
           ],
           if (showDuration)
             SizedBox(
@@ -1621,7 +1972,10 @@ class _TrackRow extends StatelessWidget {
                                     '${entry.extension.toUpperCase()} · ${(entry.size / 1048576).toStringAsFixed(1)} MB',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -1712,7 +2066,10 @@ class _TrackRow extends StatelessWidget {
                       entry.isDirectory
                           ? '—'
                           : '${entry.extension.toUpperCase()} · ${(entry.size / 1048576).toStringAsFixed(1)} MB',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   SizedBox(
@@ -1844,28 +2201,51 @@ class PlayerBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = controller.current;
     if (current == null) return const SizedBox.shrink();
-    final narrow = MediaQuery.sizeOf(context).width < 820;
+    final screen = MediaQuery.sizeOf(context);
+    final compact = screen.width < 820 || screen.height < 700;
     return Container(
-      constraints: BoxConstraints(minHeight: narrow ? 64 : 180),
-      padding: EdgeInsets.fromLTRB(18, narrow ? 8 : 10, 18, narrow ? 8 : 12),
+      constraints: BoxConstraints(minHeight: compact ? 64 : 180),
+      padding: EdgeInsets.fromLTRB(18, compact ? 8 : 10, 18, compact ? 8 : 12),
       decoration: const BoxDecoration(
         color: AppColors.sidebar,
         border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final horizontal = constraints.maxWidth >= 820;
+          final horizontal = constraints.maxWidth >= 820 && !compact;
           final info = _NowPlayingInfo(
             controller: controller,
             onTap: () => _openNowPlaying(context),
             compact: !horizontal,
           );
-          final controls = _PlaybackControls(controller: controller);
+          final controls = _PlaybackControls(
+            controller: controller,
+            minimal: constraints.maxWidth < 360,
+          );
           final waveform = PlayerWaveform(
             controller: controller,
             compact: true,
           );
           if (!horizontal) {
+            if (constraints.maxWidth < 360) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  info,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        tooltip: '歌词',
+                        onPressed: () => _openNowPlaying(context, lyrics: true),
+                        icon: const Icon(Icons.lyrics_rounded, size: 20),
+                      ),
+                      controls,
+                    ],
+                  ),
+                ],
+              );
+            }
             return Row(
               children: [
                 Expanded(child: info),
@@ -2007,7 +2387,10 @@ class _NowPlayingInfo extends StatelessWidget {
                     _artistAlbum(metadata),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 4),
                 ],
@@ -2032,8 +2415,9 @@ class _NowPlayingInfo extends StatelessWidget {
 }
 
 class _PlaybackControls extends StatelessWidget {
-  const _PlaybackControls({required this.controller});
+  const _PlaybackControls({required this.controller, this.minimal = false});
   final PlayerController controller;
+  final bool minimal;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -2076,30 +2460,34 @@ class _PlaybackControls extends StatelessWidget {
             : () => controller.skip(true),
         icon: const Icon(Icons.skip_next_rounded),
       ),
-      IconButton(
-        tooltip: controller.shuffleEnabled ? '随机播放 · 点击关闭' : '顺序播放 · 点击开启随机',
-        onPressed: controller.busy ? null : controller.toggleShuffle,
-        icon: Icon(
-          Icons.shuffle_rounded,
-          color: controller.shuffleEnabled ? AppColors.accent : Colors.white38,
+      if (!minimal)
+        IconButton(
+          tooltip: controller.shuffleEnabled ? '随机播放 · 点击关闭' : '顺序播放 · 点击开启随机',
+          onPressed: controller.busy ? null : controller.toggleShuffle,
+          icon: Icon(
+            Icons.shuffle_rounded,
+            color: controller.shuffleEnabled
+                ? AppColors.accent
+                : Colors.white38,
+          ),
         ),
-      ),
-      IconButton(
-        tooltip: switch (controller.player.loopMode) {
-          LoopMode.off => '顺序播放 · 点击切换列表循环',
-          LoopMode.all => '列表循环 · 点击切换单曲循环',
-          LoopMode.one => '单曲循环 · 点击切换顺序播放',
-        },
-        onPressed: controller.busy ? null : controller.cycleLoop,
-        icon: Icon(
-          controller.player.loopMode == LoopMode.one
-              ? Icons.repeat_one_rounded
-              : Icons.repeat_rounded,
-          color: controller.player.loopMode == LoopMode.off
-              ? Colors.white38
-              : AppColors.accent,
+      if (!minimal)
+        IconButton(
+          tooltip: switch (controller.player.loopMode) {
+            LoopMode.off => '顺序播放 · 点击切换列表循环',
+            LoopMode.all => '列表循环 · 点击切换单曲循环',
+            LoopMode.one => '单曲循环 · 点击切换顺序播放',
+          },
+          onPressed: controller.busy ? null : controller.cycleLoop,
+          icon: Icon(
+            controller.player.loopMode == LoopMode.one
+                ? Icons.repeat_one_rounded
+                : Icons.repeat_rounded,
+            color: controller.player.loopMode == LoopMode.off
+                ? Colors.white38
+                : AppColors.accent,
+          ),
         ),
-      ),
     ],
   );
 }

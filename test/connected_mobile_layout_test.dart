@@ -26,8 +26,7 @@ class _Source extends MusicSource {
     MusicEntry entry,
     String extension, {
     required int maxBytes,
-  }) async =>
-      null;
+  }) async => null;
 }
 
 class _MetadataLoader implements TrackMetadataLoader {
@@ -40,6 +39,29 @@ class _MetadataLoader implements TrackMetadataLoader {
         composers: const ['作曲甲'],
         arrangers: const ['编曲甲'],
       );
+}
+
+class _PlayingController extends PlayerController {
+  _PlayingController()
+    : super(metadataIndex: MetadataIndex(loader: _MetadataLoader()));
+
+  @override
+  MusicEntry? get current => const MusicEntry(
+    path: 'playing.flac',
+    name: '横屏正在播放的长曲目名称.flac',
+    isDirectory: false,
+    size: 22000000,
+  );
+}
+
+class _IPhoneNonlinearTextScaler extends TextScaler {
+  const _IPhoneNonlinearTextScaler();
+
+  @override
+  double scale(double fontSize) => fontSize >= 30 ? fontSize : fontSize * 1.5;
+
+  @override
+  double get textScaleFactor => 1.5;
 }
 
 void main() {
@@ -124,4 +146,77 @@ void main() {
       await tester.pump();
     });
   }
+
+  testWidgets('iPhone Duo 横屏非线性文字缩放时专辑封面架不溢出', (tester) async {
+    tester.view.physicalSize = const Size(951, 669);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller =
+        PlayerController(
+            metadataIndex: MetadataIndex(loader: _MetadataLoader()),
+          )
+          ..source = _Source()
+          ..directory = 'music'
+          ..entries = List.generate(
+            6,
+            (i) => MusicEntry(
+              path: '$i.flac',
+              name: '横屏长曲目名称$i.flac',
+              isDirectory: false,
+              size: 22000000,
+            ),
+          );
+    await controller.metadata.scan(controller.source!, controller.entries);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData.fromView(tester.view)
+              .copyWith(textScaler: const _IPhoneNonlinearTextScaler()),
+          child: LibraryPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('iPhone Duo 横屏播放栏保持紧凑并可打开歌词', (tester) async {
+    tester.view.physicalSize = const Size(951, 669);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _PlayingController()..source = _Source();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData.fromView(tester.view)
+              .copyWith(textScaler: const _IPhoneNonlinearTextScaler()),
+          child: Scaffold(
+            body: Column(
+              children: [
+                const Spacer(),
+                PlayerBar(controller: controller),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byType(PlayerBar)).height, lessThan(150));
+    await tester.tap(find.byTooltip('歌词'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('正在播放'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+    await tester.pump();
+  });
 }

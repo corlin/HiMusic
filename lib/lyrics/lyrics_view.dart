@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
@@ -30,7 +31,7 @@ class LyricsView extends StatefulWidget {
 }
 
 class _LyricsViewState extends State<LyricsView> {
-  static const _lineExtent = 64.0;
+  double _lineExtent = 64;
   final _scrollController = ScrollController();
   Timer? _resumeTimer;
   bool _following = true;
@@ -101,7 +102,9 @@ class _LyricsViewState extends State<LyricsView> {
     // 有候选歌词时弹出选择器
     final choices = controller.pendingChoices;
     if (choices != null && choices.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showChoices(choices));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showChoices(choices),
+      );
     }
     return switch (controller.status) {
       LyricsStatus.idle || LyricsStatus.loading => const Center(
@@ -129,10 +132,10 @@ class _LyricsViewState extends State<LyricsView> {
         text: '这首歌没有本地歌词',
         action: widget.onFetchLyrics != null
             ? TextButton.icon(
-          onPressed: _handleFetch,
-          icon: const Icon(Icons.cloud_download_rounded, size: 18),
-          label: const Text('联网获取'),
-        )
+                onPressed: _handleFetch,
+                icon: const Icon(Icons.cloud_download_rounded, size: 18),
+                label: const Text('联网获取'),
+              )
             : null,
       ),
       LyricsStatus.error => _Message(
@@ -159,9 +162,8 @@ class _LyricsViewState extends State<LyricsView> {
     final metadata = await widget.onFetchLyrics?.call();
     if (metadata == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('无法获取歌曲信息，请先播放歌曲')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('无法获取歌曲信息，请先播放歌曲')));
       }
       return;
     }
@@ -194,13 +196,22 @@ class _LyricsViewState extends State<LyricsView> {
                     leading: const Icon(Icons.music_note_rounded),
                     title: Text(item.name ?? '未知歌曲'),
                     subtitle: Text(
-                      [item.artistName, item.albumName]
-                          .where((s) => s != null && s.isNotEmpty)
-                          .join(' · '),
+                      [
+                        item.artistName,
+                        item.albumName,
+                      ].where((s) => s != null && s.isNotEmpty).join(' · '),
                     ),
                     trailing: item.hasSynced
-                        ? const Icon(Icons.timer_rounded, size: 16, color: Colors.green)
-                        : const Icon(Icons.article_rounded, size: 16, color: Colors.grey),
+                        ? const Icon(
+                            Icons.timer_rounded,
+                            size: 16,
+                            color: Colors.green,
+                          )
+                        : const Icon(
+                            Icons.article_rounded,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
                     onTap: () {
                       Navigator.pop(context);
                       widget.controller.applyChoice(item);
@@ -230,6 +241,10 @@ class _LyricsViewState extends State<LyricsView> {
         ),
       );
     }
+    _lineExtent = math.max(
+      64,
+      MediaQuery.textScalerOf(context).scale(23) * 2.5,
+    );
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
